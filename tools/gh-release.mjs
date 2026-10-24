@@ -22,7 +22,9 @@ const HOME_DL = _join(_homedir(), '.xinguang-release');
 const DL = process.env.XINGUANG_DL || (_exists(LEGACY_DL) ? LEGACY_DL : HOME_DL);
 const GIT = process.env.GIT_BIN || (_exists('E:/shiguang-testbed/git/cmd/git.exe') ? 'E:/shiguang-testbed/git/cmd/git.exe' : 'git');
 const REPO_DIR = _dirname(_dirname(_fileURLToPath(import.meta.url))); // tools/ -> repo root
-const API = 'https://api.github.com';
+const API = process.env.GH_API || 'https://api.github.com';            // GH_API / GH_REMOTE_BASE / GH_LIVE_BASE are offline-rehearsal hooks
+const REMOTE_BASE = process.env.GH_REMOTE_BASE || 'https://github.com';
+const LIVE_BASE = process.env.GH_LIVE_BASE || '';
 mkdirSync(DL, { recursive: true });
 
 function arg(name, dflt) {
@@ -80,7 +82,7 @@ if (created.status === 201) console.log('REPO_CREATED ' + created.json.full_name
 else if (created.status === 422) console.log('REPO_EXISTS (reusing)');
 else { console.log('REPO_ERROR status=' + created.status + ' ' + JSON.stringify(created.json).slice(0, 400)); process.exit(4); }
 
-const remoteUrl = 'https://github.com/' + owner + '/' + repoName + '.git';
+const remoteUrl = REMOTE_BASE + '/' + owner + '/' + repoName + '.git';
 const existing = git(['remote']).split(/\r?\n/).filter(Boolean);
 if (existing.includes('origin')) git(['remote', 'set-url', 'origin', remoteUrl]);
 else git(['remote', 'add', 'origin', remoteUrl]);
@@ -104,7 +106,7 @@ if (pages.status === 201) console.log('PAGES_ENABLED');
 else if (pages.status === 409) console.log('PAGES_ALREADY_ENABLED');
 else console.log('PAGES_SETUP status=' + pages.status + ' ' + JSON.stringify(pages.json).slice(0, 300));
 
-const url = 'https://' + owner + '.github.io/' + repoName + '/';
+const url = (LIVE_BASE || ('https://' + owner + '.github.io')) + '/' + repoName + '/';
 for (let i = 0; i < 20; i++) {
   await new Promise(function (r) { setTimeout(r, 15000); });
   const st = await api('GET', '/repos' + pagesRepo + '/pages');
@@ -127,7 +129,7 @@ for (const n of v.notes) console.log('  ' + n);
 console.log('LIVE_VERIFY ' + (v.ok ? 'OK' : 'FAILED'));
 for (const f of v.failures) console.log('  ! ' + f);
 
-const head = await api('GET', '/' + owner + '/' + repoName + '/commits/main');
+const head = await api('GET', '/repos/' + owner + '/' + repoName + '/commits/main');
 console.log('LIVE_URL ' + url);
 console.log('PAGES_URL ' + (pages.json && pages.json.html_url ? pages.json.html_url : url));
 console.log('HEAD ' + (head.json && head.json.sha ? head.json.sha.slice(0, 7) : '?'));
