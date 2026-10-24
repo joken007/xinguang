@@ -98,6 +98,7 @@ const checkUrl = checkUrlArg || ('https://' + domain + '/');
 if (dryRun) {
   console.log('PLAN set cname=' + domain + ' on ' + owner + '/' + repoName);
   console.log('PLAN enforce HTTPS (warn only if the certificate is not ready yet)');
+  console.log('PLAN point the repository homepage at ' + checkUrl + ' (note only if it fails)');
   console.log('PLAN verify ' + checkUrl);
   console.log('DRY_RUN done');
   process.exit(0);
@@ -136,12 +137,22 @@ if (httpsState === 'already') console.log('HTTPS_ALREADY');
 else if (httpsState === 'enforced') console.log('HTTPS_ENFORCED');
 else console.log('HTTPS_PENDING run this again in a few minutes: Settings -> Pages -> Enforce HTTPS was not accepted yet');
 
+// The repository homepage should be the address people will actually share. Cosmetic, so a refusal
+// (narrow scope, rate limit) is a note and never turns a working custom domain into a failure.
+try {
+  const hp = await api('PATCH', '/repos/' + owner + '/' + repoName, { homepage: checkUrl });
+  console.log(hp.status === 200 ? 'REPO_HOMEPAGE ' + checkUrl : 'REPO_HOMEPAGE_SKIPPED status=' + hp.status);
+} catch (e) {
+  console.log('REPO_METADATA_SKIPPED ' + String((e && e.message) || e).slice(0, 200));
+}
+
 let ok = false;
 for (let i = 1; i <= Math.max(1, retries); i++) {
   const r = await verifyLive(checkUrl, { timeout: 20000 });
   console.log('VERIFY ' + i + '/' + Math.max(1, retries) + ' ' + (r.ok ? 'OK' : 'FAIL'));
   for (const n of r.notes) console.log('  ' + n);
   for (const f of r.failures) console.log('  ! ' + f);
+  for (const w of (r.warnings || [])) console.log('  ~ ' + w);
   if (r.ok) { ok = true; break; }
   if (i < Math.max(1, retries)) await sleep(delay);
 }

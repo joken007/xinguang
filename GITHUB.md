@@ -7,10 +7,10 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，43 个提交 / 55 个文件，工作区干净） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，44 个提交 / 55 个文件，工作区干净） |
 | 发布前体检 | ✅ `node tools/preflight.mjs` 一条命令列出「还缺什么」（令牌/仓库/Pages/DNS/工作区），只读不改 |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
-| 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当时全部提交 / 53 个文件真的推了起来，站点自检 200） |
+| 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当时全部提交 / 55 个文件真的推了起来，站点自检 200） |
 | 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
 | 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
 | 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开；推送后 `.github/workflows/check.yml` 会再验一遍 |
@@ -88,7 +88,7 @@ git push -u origin main
 node tools/gh-release.mjs --repo xinguang
 ```
 
-它会依次：校验令牌身份 → 建仓库（已存在则复用）→ 把 `main` 直接推到仓库地址 → **推成功之后**才配上 `origin`（并本地重建跟踪分支，不再回拉一次网络）→ 调 API 开启 Pages → 轮询构建状态（最多 20×15s）→ **打开线上地址真验一遍**（`index.html` 200、页面标记齐全、`vendor/three.module.js` 与 `src/*.js` 全部 200）→ 打印 `LIVE_URL`。
+它会依次：校验令牌身份 → 建仓库（已存在则复用）→ 把 `main` 直接推到仓库地址 → **推成功之后**才配上 `origin`（并本地重建跟踪分支，不再回拉一次网络）→ 调 API 开启 Pages → 轮询构建状态（最多 20×15s）→ **打开线上地址真验一遍**（`index.html` 200、页面标记齐全、`vendor/three.module.js` 与 `src/*.js` 全部 200 且返回 javascript/css 类型——模块被当成 `text/plain` 发出去时页面只会白屏，而这类事故光看首页是 200 看不出来的；单文件版 `心光.html` 取不到只记一条警告）→ 给仓库设主页地址与话题（`homepage` 指线上站点，话题写 `mindfulness / meditation / threejs / webgl / generative-art`；这一步失败只打一行 `REPO_HOMEPAGE_SKIPPED` / `REPO_TOPICS_SKIPPED`，不会把已经上线的发布判成失败）→ 打印 `LIVE_URL`。
 
 > 推送用的令牌通过一个临时凭据文件交给 git，`finally` 里立即删除，`git config` 里不留任何痕迹。凭据文件的 `protocol://host` 是从实际 remote 推导的；push 前会先清空机器上预置的 credential helper —— Git for Windows 自带的 `credential-helper-selector` 会在无人值守时**挂住等人手输密码**，必须显式绕过。
 >
@@ -198,7 +198,7 @@ node tools/gh-custom-domain.mjs --domain xinguang.is-a.dev            # 填 cnam
 
 它会先确认 Pages 已经开着（没开会直接 `PAGES_NOT_ENABLED` 退出 `4`——这时填域名只会指到空站点），
 然后 `PUT` 自定义域、轮询到 Pages 认到新 cname、再尝试 **Enforce HTTPS**（证书签发最长可能要一小时，
-这时只打 `HTTPS_PENDING` 警告、不算失败），最后用 `verify-live` 验一次首页与它引用的本地资源。
+这时只打 `HTTPS_PENDING` 警告、不算失败），顺手把仓库主页地址改成自定义域名（失败只记一行），最后用 `verify-live` 验一次首页与它引用的本地资源。
 
 地址从 `<owner>.github.io/<repo>/` 换成自定义域名之后，社交预览里的绝对地址也要跟着改（再跑一次即可，
 `publish-polish` 按模式匹配整行改写，认得出旧地址）：

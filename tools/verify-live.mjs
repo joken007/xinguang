@@ -5,7 +5,8 @@
 //
 // Checks: index.html returns 200 -> contains the page markers -> the importmap target
 // (./vendor/three.module.js) returns 200 and looks like three.js -> the quoted ES modules
-// referenced by index.html all return 200. Exit code 0 = OK, 1 = FAIL.
+// referenced by index.html all return 200, with a javascript/css content type. The single-file
+// build (心光.html) is reported as a warning if it is missing. Exit code 0 = OK, 1 = FAIL.
 //
 // Also exported as verifyLive(url, opts) so tools/gh-release.mjs can run it right after deploy.
 
@@ -27,7 +28,7 @@ async function get(url, timeout) {
   try {
     const res = await fetch(url, { redirect: 'follow', signal: ac.signal, headers: { 'User-Agent': 'xinguang-verify' } });
     const body = await res.text();
-    return { status: res.status, body: body, finalUrl: res.url };
+    return { status: res.status, body: body, finalUrl: res.url, ctype: String(res.headers.get('content-type') || '') };
   } catch (e) {
     return { status: 0, body: '', error: String(e && e.message ? e.message : e) };
   } finally { clearTimeout(t); }
@@ -60,10 +61,23 @@ export async function verifyLive(url, opts) {
     const r = await get(u, timeout);
     notes.push('GET ' + rel + ' -> ' + (r.status || r.error) + ' (' + Buffer.byteLength(r.body, 'utf8') + ' B)');
     if (r.status !== 200) failures.push(rel + ' status ' + (r.status || r.error));
+    // A module served as text/plain is a classic broken deploy: the browser refuses it and the
+    // only symptom is an empty canvas, so check the header while we are here.
+    else if (rel.endsWith('.js') && !/javascript|ecmascript/i.test(r.ctype)) failures.push(rel + ' is served as ' + (r.ctype || 'no content-type') + ' (ES modules need a javascript type)');
+    else if (rel.endsWith('.css') && !/text\/css/i.test(r.ctype)) failures.push(rel + ' is served as ' + (r.ctype || 'no content-type'));
     else if (rel.endsWith('three.module.js') && !/three\.js|WebGLRenderer/i.test(r.body)) failures.push(rel + ' does not look like three.js');
   }
 
-  return { ok: failures.length === 0, notes: notes, failures: failures };
+  // The single-file build is a shipped artifact (open it offline from the repo), not the entry point,
+  // so a host that does not serve it is a warning rather than a broken site.
+  const warnings = [];
+  const bundleRel = '心光.html';
+  const bundle = await get(new URL(encodeURI(bundleRel), base).href, timeout);
+  notes.push('GET ' + bundleRel + ' -> ' + (bundle.status || bundle.error) + ' (' + Buffer.byteLength(bundle.body, 'utf8') + ' B)');
+  if (bundle.status !== 200) warnings.push(bundleRel + ' is not reachable (' + (bundle.status || bundle.error) + '): the single-file build is missing from the deployment');
+  else if (!bundle.body.includes('心光')) warnings.push(bundleRel + ' does not look like the app');
+
+  return { ok: failures.length === 0, notes: notes, failures: failures, warnings: warnings };
 }
 
 async function main() {
@@ -74,6 +88,7 @@ async function main() {
     console.log('ATTEMPT ' + i + '/' + a.retries + ' ' + (r.ok ? 'OK' : 'FAIL'));
     for (const n of r.notes) console.log('  ' + n);
     for (const f of r.failures) console.log('  ! ' + f);
+    for (const w of (r.warnings || [])) console.log('  ~ ' + w);
     if (r.ok) { console.log('VERIFY_OK ' + a.url); process.exit(0); }
     if (i < a.retries) await new Promise(function (res) { setTimeout(res, a.delay); });
   }

@@ -95,6 +95,7 @@ const owner = me.json.login;
 console.log('AUTHENTICATED as ' + owner + ' (' + (me.json.name || '') + ')');
 
 const desc = 'A mindfulness page: every touch lifts the sun one frame. three.js / WebGL, no build step.';
+const TOPICS = ['mindfulness', 'meditation', 'threejs', 'webgl', 'generative-art'];
 let created = await api('POST', '/user/repos', {
   name: repoName, private: isPrivate, description: desc,
   has_issues: true, has_wiki: false, has_projects: false, auto_init: false
@@ -196,12 +197,25 @@ for (let i = 0; i < 6; i++) {
   await new Promise(function (r) { setTimeout(r, 8000); });
 }
 for (const n of v.notes) console.log('  ' + n);
+for (const w of (v.warnings || [])) console.log('  ~ ' + w);
 const result = v.ok ? 'OK' : 'FAILED';
 console.log('LIVE_VERIFY ' + result);
 for (const f of v.failures) console.log('  ! ' + f);
 if (!v.ok) {
   console.log('ERROR: deployed site verification failed. Exiting with code 1.');
   process.exit(1);
+}
+
+// A public repo is easier to find when its homepage points at the live site and it carries a few
+// topics. Both calls are cosmetic: a rate limit, a scope that is too narrow or a changed API must not
+// fail a release that has already landed.
+try {
+  const hp = await api('PATCH', '/repos' + pagesRepo, { homepage: url, description: desc });
+  console.log(hp.status === 200 ? 'REPO_HOMEPAGE ' + url : 'REPO_HOMEPAGE_SKIPPED status=' + hp.status);
+  const tp = await api('PUT', '/repos' + pagesRepo + '/topics', { names: TOPICS });
+  console.log(tp.status === 200 ? 'REPO_TOPICS ' + ((tp.json && tp.json.names) || []).join(', ') : 'REPO_TOPICS_SKIPPED status=' + tp.status);
+} catch (e) {
+  console.log('REPO_METADATA_SKIPPED ' + String((e && e.message) || e).slice(0, 200));
 }
 
 const head = await api('GET', '/repos/' + owner + '/' + repoName + '/commits/main');
