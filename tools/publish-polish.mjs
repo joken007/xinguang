@@ -6,7 +6,8 @@
 // The repository is written as if it did not know its own address, which is right while it is being
 // built but wrong the moment it is served: social crawlers want an absolute og:image, and a README
 // that says "once Pages is enabled" reads as unfinished. This script closes that gap idempotently --
-// run it twice and the second run finds nothing to do and says so.
+// run it twice and the second run finds nothing to do and says so -- and it can be run again when the
+// address changes (the site starts on <owner>.github.io/<repo>/ and a custom domain comes later).
 //
 // It rewrites:
 //   index.html       og:image / twitter:image -> absolute, adds og:url when missing
@@ -79,39 +80,71 @@ function patch(file, from, to, note) {
   console.log('PATCHED ' + file + ' :: ' + note);
 }
 
+// Retarget replaces whatever a line or tag currently holds, so the address can be moved later (the
+// site starts on <owner>.github.io/<repo>/ and a custom domain comes after that). It reports ALREADY
+// when the file is on the wanted value and SKIP when the pattern is not there at all.
+function retarget(file, match, to, note) {
+  const full = join(ROOT, file);
+  if (!existsSync(full)) { console.log('SKIP ' + file + ' (absent)'); return; }
+  const text = readFileSync(full, 'utf8');
+  const next = text.replace(match, to);
+  if (next === text) {
+    if (text.includes(to)) console.log('ALREADY ' + file + ' :: ' + note);
+    else console.log('SKIP ' + file + ' :: anchor not found (' + note + ')');
+    return;
+  }
+  writeFileSync(full, next);
+  changed.push(file + ' :: ' + note);
+  console.log('PATCHED ' + file + ' :: ' + note);
+}
+
 // --- index.html: absolute social metadata ------------------------------------------------------
-patch('index.html',
-  '<meta property="og:image" content="./preview/03-bright.png" />',
+// The address is not final: the site is first served from <owner>.github.io/<repo>/ and may later get
+// a custom domain. So the two image tags are retargeted by pattern rather than by replacing a fixed
+// placeholder -- a plain "replace ./preview/03-bright.png" would silently do nothing on the second run
+// and leave the old address in place.
+retarget('index.html', /<meta property="og:image" content="[^"]*" \/>/,
   '<meta property="og:image" content="' + url + 'preview/03-bright.png" />',
   'og:image');
-patch('index.html',
-  '<meta name="twitter:image" content="./preview/03-bright.png" />',
+retarget('index.html', /<meta name="twitter:image" content="[^"]*" \/>/,
   '<meta name="twitter:image" content="' + url + 'preview/03-bright.png" />',
   'twitter:image');
-patch('index.html',
-  '<meta property="og:site_name" content="心光" />',
-  '<meta property="og:site_name" content="心光" />' + String.fromCharCode(10) + '<meta property="og:url" content="' + url + '" />',
-  'og:url');
+if (/<meta property="og:url" content="[^"]*" \/>/.test(readFileSync(join(ROOT, 'index.html'), 'utf8'))) {
+  retarget('index.html', /<meta property="og:url" content="[^"]*" \/>/,
+    '<meta property="og:url" content="' + url + '" />',
+    'og:url');
+} else {
+  patch('index.html',
+    '<meta property="og:site_name" content="心光" />',
+    '<meta property="og:site_name" content="心光" />' + String.fromCharCode(10) + '<meta property="og:url" content="' + url + '" />',
+    'og:url');
+}
 
-// --- README.md: the live demo placeholder ------------------------------------------------------
-patch('README.md',
-  'Once GitHub Pages is enabled this page is served at `https://<user>.github.io/xinguang/`.',
-  'Live at <' + url + '>.',
-  'live demo link');
+// --- README.md: the live demo line -------------------------------------------------------------
+if (/Live at <https?:\/\/[^>\s]+>\./.test(readFileSync(join(ROOT, 'README.md'), 'utf8'))) {
+  retarget('README.md', /Live at <https?:\/\/[^>\s]+>\./, 'Live at <' + url + '>.', 'live demo link');
+} else {
+  patch('README.md',
+    'Once GitHub Pages is enabled this page is served at `https://<user>.github.io/xinguang/`.',
+    'Live at <' + url + '>.',
+    'live demo link');
+}
 
 // --- README.zh-CN.md: a short 线上地址 line under the intro ------------------------------------
-patch('README.zh-CN.md',
-  '## 预览',
-  '线上地址：<' + url + '>' + String.fromCharCode(10) + String.fromCharCode(10) + '## 预览',
-  '线上地址');
+if (/线上地址：<https?:\/\/[^>\s]+>/.test(readFileSync(join(ROOT, 'README.zh-CN.md'), 'utf8'))) {
+  retarget('README.zh-CN.md', /线上地址：<https?:\/\/[^>\s]+>/, '线上地址：<' + url + '>', '线上地址');
+} else {
+  patch('README.zh-CN.md',
+    '## 预览',
+    '线上地址：<' + url + '>' + String.fromCharCode(10) + String.fromCharCode(10) + '## 预览',
+    '线上地址');
+}
 
-// --- GITHUB.md: mark the two rows that are now done --------------------------------------------
-patch('GITHUB.md',
-  '| 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |',
+// --- GITHUB.md: the two rows that are done once the site is up ---------------------------------
+retarget('GITHUB.md', /^\| 推送到你的 GitHub 账号 \|[^\n]*\|[ \t]*\r?$/m,
   '| 推送到你的 GitHub 账号 | ✅ 已推送：<' + url + '> |',
   'push row');
-patch('GITHUB.md',
-  '| 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开；推送后 `.github/workflows/check.yml` 会再验一遍 |',
+retarget('GITHUB.md', /^\| 开启 GitHub Pages 线上站点 \|[^\n]*\|[ \t]*\r?$/m,
   '| 开启 GitHub Pages 线上站点 | ✅ 已上线并验证：<' + url + '> |',
   'pages row');
 
