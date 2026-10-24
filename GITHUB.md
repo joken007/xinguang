@@ -96,7 +96,11 @@ node tools/gh-release.mjs --repo xinguang
 - 全部资源走**相对路径**，放在 `/<仓库名>/` 子路径下不会 404
 - 带了 `.nojekyll`，Jekyll 不会去动 `src/` 之类的目录
 - 纯静态、零构建：Pages 直接托管仓库根目录即可
+- 应用图标、`site.webmanifest`（可以「添加到主屏幕」当应用打开）、`robots.txt` 都已就位
+- 社交分享用的是 `./preview/03-bright.png`（现在是相对地址；知道最终域名后把它改成绝对地址，微信/Twitter 的抓取器才认得）
 - 想验证的话打开站点点几下，或用任意静态服务器本地跑 `node serve.mjs`
+
+`main` 每次推送都会跑一遍 `.github/workflows/check.yml`：语法检查 → 重新打包单文件版并要求与仓库里的一致 → 用 `tools/verify-live.mjs` 访问线上地址确认能打开。所以首页一旦坏掉，仓库的 Actions 会先红给你看。
 
 ## 第三步：免费域名（可选但推荐）
 
