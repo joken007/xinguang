@@ -150,5 +150,11 @@ node tools/gh-domain.mjs --domain xinguang      # 查重名 → fork → 建分�
 **推送要密码怎么办？** GitHub 已经不允许密码推送，用上面的令牌。
 **推送卡住不动、没有任何输出？** 是 Git 预置的 credential helper 在等你手输密码。用本仓库的脚本推（它会绕过 helper）；直接 `git push` 的话先执行 `git config --global --unset credential.helper`，或设 `GIT_TERMINAL_PROMPT=0` 让它直接报错而不是干等。
 **仓库名可以改吗？** 可以，但 Pages 地址会跟着变，改完记得同步 `CNAME`（如果用自定义域则不受影响）。
-**脚本报错了怎么知道是真失败？** 三个脚本都按退出码报状态：`0` 成功；`gh-release` 失败退出 `1`、令牌无效 `3`、建仓库失败 `4`；`gh-domain` 域名被占 `4`、fork 失败 `5`、写文件失败 `8`、**开 PR 失败 `9`**。别只看日志里的「OK」字样。
+**脚本报错了怎么知道是真失败？** 都按退出码报状态，别只看日志里的「OK」字样：
+
+| 脚本 | 退出码 |
+| --- | --- |
+| `gh-release` | `0` 成功 · `1` **线上站点验证失败** · `2` 没有令牌 · `3` 令牌无效 · `4` 建仓库失败 |
+| `gh-domain` | `0` 成功 · `2` 没有令牌 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
+| `watch-and-release` | `0` 发布成功 · `3` 等不到令牌 · 其余 = `gh-release` 的退出码 |
 **国内打不开 github.io？** 用方案里的 Cloudflare Pages 镜像，同一个仓库可以同时挂两份。
