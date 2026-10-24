@@ -94,7 +94,14 @@ git push -u origin main
 xinguang.is-a.dev
 ```
 
-顺序很重要：**先在 Settings → Pages 里填自定义域，再去加 DNS**；反过来可能被别人抢注子域。证书签发最长等 1 小时，好了之后勾上 **Enforce HTTPS**。
+**is-a.dev 的顺序是固定的**（官方指南 <https://docs.is-a.dev/guides/github-pages/> 明确要求）：
+
+1. 先按上面的清单提 PR —— DNS 那一条 CNAME 由 is-a.dev 那边按你 JSON 里的 `records` 配好，**你自己不用加任何 DNS 记录**；
+2. **等 PR 合并之后**，再去 Settings → Pages 填自定义域。提前填会 404 或指错站点；
+3. 最后勾 **Enforce HTTPS**（证书签发最长等 1 小时）。
+
+仓库根目录的 `CNAME` 文件不用你手写：在 Settings 里填完自定义域，GitHub 会自动提交一个只有一行域名、不带 `https://`、不带路径的 `CNAME`。
+> 如果你以后换成自己控 DNS 的域名（比如买了顶级域），那时才需要「先填自定义域、再加 DNS」的防抢注顺序。
 
 ## 这个仓库里有什么
 

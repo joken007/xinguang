@@ -124,17 +124,18 @@
 
 ~~~json
 {
-  "owner": {
-    "username": "你的GitHub用户名",
-    "email": "你的邮箱@example.com"
-  },
-  "description": "心光 — a three.js / WebGL mindfulness sunrise webpage (open-source software project)",
-  "repo": "https://github.com/你的用户名/仓库名",
-  "record": {
-    "CNAME": "你的用户名.github.io"
-  }
+    "owner": {
+        "username": "你的GitHub用户名"
+    },
+    "records": {
+        "CNAME": "你的GitHub用户名.github.io"
+    }
 }
 ~~~
+
+> ⚠️ 字段名是 **`records`（复数）**，`owner` 里只需要 `username`。
+> 上面这个格式是 2026-10-25 从官方文档 <https://docs.is-a.dev/quickstart/> 与
+> <https://docs.is-a.dev/guides/github-pages/> 核对的；网上不少教程还在用旧的 `record`（单数），会被 CI 判为格式错误。
 
 - **理由**：免费、无需续期、审核快、天然支持 CNAME、社区口碑好；「心光」属开发项目，符合其非商业+开发相关门槛。
 

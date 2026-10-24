@@ -1,0 +1,95 @@
+#!/usr/bin/env node
+// Apply for a free is-a.dev subdomain by fork + branch + file + pull request.
+//   node tools/gh-domain.mjs --domain xinguang --email you@example.com [--repo xinguang] [--dry-run]
+
+import { readFileSync, existsSync } from 'node:fs';
+
+const DL = 'E:/shiguang-testbed/dl';
+const UPSTREAM = 'is-a-dev/register';
+
+function arg(name, dflt) {
+  const i = process.argv.indexOf('--' + name);
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
+}
+const domain = arg('domain', 'xinguang');
+const email = arg('email', '');
+const repoName = arg('repo', 'xinguang');
+const dryRun = process.argv.includes('--dry-run');
+
+let token = process.env.GITHUB_TOKEN || '';
+if (!token && existsSync(DL + '/gh-token.txt')) token = readFileSync(DL + '/gh-token.txt', 'utf8').trim();
+if (!token) { console.log('NO_TOKEN'); process.exit(2); }
+if (!email) { console.log('NEED_EMAIL'); process.exit(2); }
+
+async function api(method, path, body) {
+  const res = await fetch('https://api.github.com' + path, {
+    method: method,
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'xinguang-domain', 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch (e) { json = { raw: text.slice(0, 300) }; }
+  return { status: res.status, json: json };
+}
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+const me = await api('GET', '/user');
+if (me.status !== 200) { console.log('AUTH_FAILED ' + me.status); process.exit(3); }
+const owner = me.json.login;
+const full = domain + '.is-a.dev';
+const filePath = 'domains/' + full + '.json';
+
+const taken = await api('GET', '/repos/' + UPSTREAM + '/contents/' + filePath);
+if (taken.status === 200) { console.log('DOMAIN_TAKEN ' + full); process.exit(4); }
+console.log('DOMAIN_AVAILABLE ' + full);
+
+const payload = {
+  owner: { username: owner },
+  records: { CNAME: owner + '.github.io' }
+};
+console.log('PAYLOAD ' + JSON.stringify(payload));
+if (dryRun) { console.log('DRY_RUN done'); process.exit(0); }
+
+const fork = await api('POST', '/repos/' + UPSTREAM + '/forks');
+if (fork.status !== 202 && fork.status !== 200) { console.log('FORK_FAILED ' + fork.status); process.exit(5); }
+const defaultBranch = (fork.json && fork.json.default_branch) || 'main';
+for (let i = 0; i < 30; i++) {
+  const chk = await api('GET', '/repos/' + owner + '/register');
+  if (chk.status === 200) break;
+  await sleep(2000);
+}
+console.log('FORK_READY ' + owner + '/register base=' + defaultBranch);
+
+const branch = 'add-' + domain;
+const baseRef = await api('GET', '/repos/' + owner + '/register/git/ref/heads/' + defaultBranch);
+if (baseRef.status !== 200) { console.log('BASE_REF_FAILED ' + baseRef.status); process.exit(6); }
+const madeRef = await api('POST', '/repos/' + owner + '/register/git/refs', { ref: 'refs/heads/' + branch, sha: baseRef.json.object.sha });
+if (madeRef.status === 201) console.log('BRANCH_CREATED ' + branch);
+else if (madeRef.status !== 422) { console.log('BRANCH_FAILED ' + madeRef.status); process.exit(7); }
+
+const content = Buffer.from(JSON.stringify(payload, null, 2) + '\n', 'utf8').toString('base64');
+const put = await api('PUT', '/repos/' + owner + '/register/contents/' + filePath, { message: 'Add ' + full, content: content, branch: branch });
+if (put.status === 201 || put.status === 200) console.log('FILE_WRITTEN ' + filePath);
+else { console.log('FILE_FAILED ' + put.status); process.exit(8); }
+
+const body = [
+  '## Domain',
+  full,
+  '',
+  '## Description',
+  'Xinguang (心光) is an open-source three.js / WebGL mindfulness webpage: a calming quote appears at random, and every touch lifts the sun by one frame until the whole scene is lit.',
+  '',
+  'Live site: https://' + owner + '.github.io/' + repoName + '/',
+  'Source: https://github.com/' + owner + '/' + repoName,
+  '',
+  'Preview:',
+  '![preview](https://' + owner + '.github.io/' + repoName + '/preview/03-bright.png)',
+  '',
+  '- [x] I have read the contribution guidelines',
+  '- [x] This is an open-source software project and the site is already live',
+  '- [x] I agree to the code of conduct'
+].join('\n');
+const pr = await api('POST', '/repos/' + UPSTREAM + '/pulls', { title: 'Add ' + full, head: owner + ':' + branch, base: defaultBranch, body: body });
+if (pr.status === 201) console.log('PR_OPENED ' + pr.json.html_url);
+else console.log('PR_FAILED ' + pr.status + ' ' + JSON.stringify(pr.json).slice(0, 400));
