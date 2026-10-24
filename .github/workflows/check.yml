@@ -1,0 +1,30 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntax-check every module
+        run: |
+          for f in serve.mjs tools/*.mjs src/*.js src/*/*.js; do
+            node --check "$f"
+          done
+
+      - name: Rebuild the single-file bundle and require it to match what is committed
+        run: |
+          node tools/build-single.mjs
+          test -s 心光.html
+          git diff --exit-code -- 心光.html
+
+      - name: Verify the deployed site
+        run: node tools/verify-live.mjs "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" --retries 10 --delay 15000 --timeout 20000
