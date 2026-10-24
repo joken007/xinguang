@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Wait for the GitHub device-flow token to appear, then publish automatically.
 // Nothing here is required: it exists so that the moment the user authorises, the repo is created,
-// pushed, Pages is switched on and the live URL is verified without anyone having to say go.
+// pushed, Pages is switched on, the live URL is verified, and the metadata is then pointed at that
+// URL -- all without anyone having to say go. Set SKIP_POLISH=1 to stop after the release.
 //
 //   node tools/watch-and-release.mjs [--repo xinguang] [--hours 12]
 import { readFileSync, existsSync, appendFileSync, unlinkSync, statSync, readdirSync } from 'node:fs';
@@ -16,6 +17,7 @@ const DL = process.env.XINGUANG_DL || (existsSync(LEGACY_DL) ? LEGACY_DL : join(
 const TOKEN_FILE = join(DL, 'gh-token.txt');
 const LOG = join(DL, 'watcher.log');
 const RELEASE = join(HERE, 'gh-release.mjs');
+const POLISH = join(HERE, 'publish-polish.mjs');
 
 function arg(name, dflt) {
   const i = process.argv.indexOf('--' + name);
@@ -167,8 +169,21 @@ if (r.stderr && r.stderr.trim()) note('  STDERR ' + r.stderr.trim().slice(0, 800
 dropCred();
 note('RELEASE_EXIT ' + r.code + (r.signal ? ' (signal ' + r.signal + ')' : ''));
 if (r.code !== 0) { note('DONE_WITH_FAILURE exit=' + r.code); process.exit(r.code || 1); }
-const live = (r.stdout.match(/LIVE_URL (\S+)/) || [])[1] || '(see log)';
-note('DONE_LIVE ' + live);
+const live = (r.stdout.match(/LIVE_URL (\S+)/) || [])[1] || '';
+
+// The site is up, so the second half of "published" is the metadata that until now could only say
+// "once Pages is enabled": social images are relative and the docs still read as work in progress.
+// Doing it here means authorising really is the only step the user has to take. A failure of this
+// cosmetic step must not hide that the site itself is live, so it is reported and not fatal.
+let polished;
+if (process.env.SKIP_POLISH === '1') polished = 'SKIP_POLISH=1';
+else if (!/^https?:\/\/\S+\/$/.test(live)) polished = 'no usable LIVE_URL, run publish-polish by hand';
+else {
+  const p = await run(process.execPath, [POLISH, '--url', live, '--push'], { GITHUB_TOKEN: token });
+  if (p.code === 0) polished = 'metadata now points at ' + live;
+  else polished = 'POLISH_FAILED exit=' + p.code + ' -- run tools/publish-polish.mjs --url ' + live + ' --push';
+}
+note('DONE_LIVE ' + (live || '(see log)') + ' :: ' + polished);
 // The token is a live credential sitting in cleartext; once the release has succeeded there is no
 // reason to keep it. (On failure it is kept on purpose so a retry does not need a fresh authorisation.)
 try { unlinkSync(TOKEN_FILE); note('TOKEN_FILE removed'); } catch (e) { note('TOKEN_FILE kept: ' + (e && e.message)); }
