@@ -7,12 +7,12 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，6 个提交，工作区干净） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，15 个提交，工作区干净） |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
-| 推送与开启 Pages 的脚本 | ✅ 已写好并**用本地裸仓库实跑验证过** |
+| 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控） |
 | 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
 | 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开 |
-| 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（见 [`docs/free-domain.md`](docs/free-domain.md)） |
+| 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排；见 [`docs/free-domain.md`](docs/free-domain.md)） |
 
 ## 第一步：给我一个 GitHub 授权（三选一）
 
@@ -66,7 +66,9 @@ node tools/gh-release.mjs --repo xinguang
 
 它会依次：校验令牌身份 → 建仓库（已存在则复用）→ 配 `origin` 并把 `main` 推上去 → 调 API 开启 Pages → 轮询构建状态（最多 20×15s）→ **打开线上地址真验一遍**（`index.html` 200、页面标记齐全、`vendor/three.module.js` 与 `src/*.js` 全部 200）→ 打印 `LIVE_URL`。
 
-> 推送用的令牌通过一个临时凭据文件交给 git，`finally` 里立即删除，`git config` 里不留任何痕迹（这条路径已用本地裸仓库实测通过）。
+> 推送用的令牌通过一个临时凭据文件交给 git，`finally` 里立即删除，`git config` 里不留任何痕迹。凭据文件的 `protocol://host` 是从实际 remote 推导的；push 前会先清空机器上预置的 credential helper —— Git for Windows 自带的 `credential-helper-selector` 会在无人值守时**挂住等人手输密码**，必须显式绕过。
+>
+> 跑完 `origin` 会留在仓库里（脚本故意不自动删，方便你接着手动 `git push`）。不想要就 `git remote remove origin`。
 
 ### 需要你拍板的三个默认值
 
@@ -124,6 +126,14 @@ xinguang.is-a.dev
 2. **等 PR 合并之后**，再去 Settings → Pages 填自定义域。提前填会 404 或指错站点；
 3. 最后勾 **Enforce HTTPS**（证书签发最长等 1 小时）。
 
+上面这一整套仓库里已经有脚本做掉了：
+
+```bash
+node tools/gh-domain.mjs --domain xinguang      # 查重名 → fork → 建分支 → 写 JSON → 开 PR
+```
+
+> PR 正文它会按官方模板填好（域名 / 描述 / 线上地址 / 预览图 / 两个勾选项）。但 is-a.dev 官方明确写着 **申请文字必须由人自己写、用 AI 生成的一定会被拒**，所以开完 PR 请你去把那几行描述改成自己的话再等维护者看。
+
 仓库根目录的 `CNAME` 文件不用你手写：在 Settings 里填完自定义域，GitHub 会自动提交一个只有一行域名、不带 `https://`、不带路径的 `CNAME`。
 > 如果你以后换成自己控 DNS 的域名（比如买了顶级域），那时才需要「先填自定义域、再加 DNS」的防抢注顺序。
 
@@ -136,6 +146,8 @@ xinguang.is-a.dev
 
 ## 常见问题
 
-**推送要密码怎么办？** GitHub 已经不允许密码推送，用上面的令牌；令牌会存在 Windows 凭据管理器里，之后就不用再输。
+**推送要密码怎么办？** GitHub 已经不允许密码推送，用上面的令牌。
+**推送卡住不动、没有任何输出？** 是 Git 预置的 credential helper 在等你手输密码。用本仓库的脚本推（它会绕过 helper）；直接 `git push` 的话先执行 `git config --global --unset credential.helper`，或设 `GIT_TERMINAL_PROMPT=0` 让它直接报错而不是干等。
 **仓库名可以改吗？** 可以，但 Pages 地址会跟着变，改完记得同步 `CNAME`（如果用自定义域则不受影响）。
+**脚本报错了怎么知道是真失败？** 三个脚本都按退出码报状态：`0` 成功；`gh-release` 失败退出 `1`、令牌无效 `3`、建仓库失败 `4`；`gh-domain` 域名被占 `4`、fork 失败 `5`、写文件失败 `8`、**开 PR 失败 `9`**。别只看日志里的「OK」字样。
 **国内打不开 github.io？** 用方案里的 Cloudflare Pages 镜像，同一个仓库可以同时挂两份。
