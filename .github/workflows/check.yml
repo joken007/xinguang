@@ -26,5 +26,26 @@ jobs:
           test -s 心光.html
           git diff --exit-code -- 心光.html
 
+      # The first push lands before Pages is switched on (enabling is a separate API call), so a live
+      # check at that moment would fail for the wrong reason and leave the very first run red. Ask the
+      # API whether a Pages site exists at all, and only then is "the site must answer" a fair demand.
+      - name: Is Pages switched on yet?
+        id: pages
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          code=$(curl -s -o /dev/null --max-time 20 -w '%{http_code}' \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages")
+          echo "status=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "200" ]; then
+            echo "have_pages=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_pages=false" >> "$GITHUB_OUTPUT"
+            echo "Pages is not configured yet (the API answered $code) -- skipping the live check."
+          fi
+
       - name: Verify the deployed site
+        if: steps.pages.outputs.have_pages == 'true'
         run: node tools/verify-live.mjs "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" --retries 10 --delay 15000 --timeout 20000
