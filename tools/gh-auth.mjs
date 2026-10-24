@@ -35,12 +35,16 @@ function arg(name, dflt) {
 }
 const mode = process.argv[2] || 'start';
 
+// Never let a transient network blip kill the wait loop: a dropped TLS socket is a normal thing to
+// happen over a long night, not a reason to stop listening for the token.
 function post(url, body) {
   return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(body)
-  }).then(function (r) { return r.json(); });
+  }).then(function (r) { return r.json(); }).catch(function (e) {
+    return { error: 'network_error', detail: String(e && e.message ? e.message : e) };
+  });
 }
 function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 function stamp() { return new Date().toISOString().slice(11, 19); }
@@ -81,7 +85,8 @@ async function tryToken(deviceCode) {
     beep(); beep(); beep();
     return { done: true };
   }
-  return { pending: t.error === 'authorization_pending' || t.error === 'slow_down', error: t.error, raw: t };
+  // network_error is treated as pending: retry instead of dying.
+  return { pending: t.error === 'authorization_pending' || t.error === 'slow_down' || t.error === 'network_error', error: t.error, raw: t };
 }
 
 if (mode === 'start') {
@@ -105,6 +110,7 @@ if (mode === 'start') {
   const minutes = Number(arg('minutes', '720'));
   const deadline = Date.now() + minutes * 60000;
   let lastBeat = 0;
+  let netFails = 0;
   let d = loadCode();
   if (d) {
     console.log('[' + stamp() + '] REUSING existing code');
@@ -118,17 +124,34 @@ if (mode === 'start') {
     await sleep(interval);
     codeAge += interval / 1000;
     if (codeAge > (d.expires_in || 900) - 30) {
-      d = await newCode('previous code expired');
-      interval = (d.interval || 5) * 1000;
-      codeAge = 0;
+      try {
+        d = await newCode('previous code expired');
+        interval = (d.interval || 5) * 1000;
+        codeAge = 0;
+      } catch (e) {
+        console.log('[' + stamp() + '] CODE_REFRESH_RETRY ' + (e && e.message ? e.message : e));
+        beep();
+        await sleep(30000);
+      }
       continue;
     }
-    const r = await tryToken(d.device_code);
+    let r;
+    try {
+      r = await tryToken(d.device_code);
+    } catch (e) {
+      r = { pending: true, error: 'network_error', raw: String(e && e.message ? e.message : e) };
+    }
     if (r.done) process.exit(0);
     if (!r.pending) {
       console.log('[' + stamp() + '] POLL_STOP ' + JSON.stringify(r.raw));
       process.exit(2);
     }
+    if (r.error === 'network_error') {
+      netFails++;
+      console.log('[' + stamp() + '] NETWORK_RETRY (' + netFails + ') ' + JSON.stringify(r.raw).slice(0, 160));
+      await sleep(Math.min(60000, 5000 * netFails));
+      continue;
+    } else { netFails = 0; }
     if (r.error === 'slow_down') interval += 5000;
     if (Date.now() - lastBeat > 60000) {
       lastBeat = Date.now();
