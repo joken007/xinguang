@@ -97,11 +97,22 @@ node tools/gh-release.mjs --repo xinguang
 - 带了 `.nojekyll`，Jekyll 不会去动 `src/` 之类的目录
 - 纯静态、零构建：Pages 直接托管仓库根目录即可
 - 应用图标、`site.webmanifest`（可以「添加到主屏幕」当应用打开）、`robots.txt` 都已就位
-- 社交分享用的是 `./preview/03-bright.png`（现在是相对地址；知道最终域名后把它改成绝对地址，微信/Twitter 的抓取器才认得）
+- 社交分享用的是 `./preview/03-bright.png`（相对地址）。微信 / Twitter 的抓取器要绝对地址，知道最终域名后跑一次 `tools/publish-polish.mjs`（见下一节）即可
 - 想验证的话打开站点点几下，或用任意静态服务器本地跑 `node serve.mjs`
 
 `main` 每次推送都会跑一遍 `.github/workflows/check.yml`：语法检查 → 重新打包单文件版并要求与仓库里的一致 → 用 `tools/verify-live.mjs` 访问线上地址确认能打开。所以首页一旦坏掉，仓库的 Actions 会先红给你看。
 
+### 知道地址之后：把元数据指过去
+
+站点一旦有了真实地址，仓库里那些「还不知道自己住哪」的占位写法就该收尾了：`og:image` 是相对路径、README 还写着「Once Pages is enabled…」、状态表还是 ⏳。一条命令收掉：
+
+```bash
+node tools/publish-polish.mjs --url https://<你的用户名>.github.io/xinguang/ --push
+```
+
+它做四件事：把 `index.html` 的 `og:image` / `twitter:image` 改成绝对地址并补上 `og:url`；把 `README.md` / `README.zh-CN.md` 里的演示地址换掉；把本文档状态表里「推送到 GitHub」「开启 Pages」两行改成 ✅；然后重打包 `心光.html`（它内联了 `index.html`，不改就会过期），最后一并提交推送。
+
+几个刻意的设计：**幂等**——第二次跑只会打 `ALREADY` / `NO_CHANGES`；**先探路再动手**——带 `--push` 时会先确认令牌和 `origin` 都在，缺一个直接 `NO_TOKEN` / `NO_ORIGIN` 退出，不会留下一笔「声称了地址、却没推上去」的提交；`--dry-run` 只看会改什么不落盘；推送同样用临时凭据文件、`finally` 删除。
 ## 第三步：免费域名（可选但推荐）
 
 详细调研见 [`docs/free-domain.md`](docs/free-domain.md)，结论是两条腿走路：
@@ -165,5 +176,6 @@ node tools/gh-domain.mjs --domain xinguang      # 查重名 → fork → 建分�
 | --- | --- |
 | `gh-release` | `0` 成功 · `1` **线上站点验证失败** · `2` 没有令牌 · `3` 令牌无效 · `4` 建仓库失败 · `5` **推送失败**（含超时） · `6` **网络不通/超时** · `7` 开 Pages 失败 |
 | `gh-domain` | `0` 成功 · `2` 没有令牌 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `6`/`7` 建分支失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
+| `publish-polish` | `0` 成功 · `2` 没有令牌 / `--url` 缺失或不是 http(s) 地址 · `4` 仓库里没有 `origin`（先跑 `gh-release`） · `5` **推送失败** · `6` 重打包单文件版失败 |
 | `watch-and-release` | `0` 发布成功 · `2` `--hours` 参数不合法 · `3` 等不到令牌 · `124` 发布超过 20 分钟被掐断 · 其余 = `gh-release` 的退出码 |
 **国内打不开 github.io？** 用方案里的 Cloudflare Pages 镜像，同一个仓库可以同时挂两份。
