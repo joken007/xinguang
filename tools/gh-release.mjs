@@ -106,6 +106,19 @@ for (let i = 0; i < 20; i++) {
   if (status === 'errored') { console.log('PAGES_ERRORED ' + JSON.stringify(st.json).slice(0, 300)); break; }
 }
 
+// Verify the deployed site actually serves the app (retry: the first build can lag the API status).
+const { verifyLive } = await import('./verify-live.mjs');
+let v = { ok: false, failures: ['not run'] };
+for (let i = 0; i < 6; i++) {
+  v = await verifyLive(url, { timeout: 20000 });
+  if (v.ok) break;
+  console.log('LIVE_VERIFY retry ' + (i + 1) + '/6 ' + v.failures.join(' | '));
+  await new Promise(function (r) { setTimeout(r, 8000); });
+}
+for (const n of v.notes) console.log('  ' + n);
+console.log('LIVE_VERIFY ' + (v.ok ? 'OK' : 'FAILED'));
+for (const f of v.failures) console.log('  ! ' + f);
+
 const head = await api('GET', '/' + owner + '/' + repoName + '/commits/main');
 console.log('LIVE_URL ' + url);
 console.log('PAGES_URL ' + (pages.json && pages.json.html_url ? pages.json.html_url : url));
