@@ -120,7 +120,8 @@ try {
 } catch (e) {}
 writeFileSync(credFile, credBase.replace('://', '://x-access-token:' + token + '@') + '\n');
 // A killed process skips finally blocks, which would leave the token in cleartext on disk. Drop it on
-// the way out of an interrupt too.
+// the way out of an interrupt too. (On Windows these handlers only fire for a real console Ctrl-C; the
+// watcher's startup sweep is the backstop for everything else.)
 function dropCred() { try { unlinkSync(credFile); } catch (e) {} }
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, function () { dropCred(); process.exit(130); });
 process.on('exit', dropCred);
@@ -134,6 +135,9 @@ try {
   ]);
   console.log('PUSH ' + out.trim().split(/\r?\n/).slice(-1)[0]);
 } catch (e) {
+  // Do not walk away leaving a half-finished remote behind: the caller cannot tell a clean repo from
+  // one whose remote points at a push that never landed.
+  try { git(['remote', 'remove', 'origin']); console.log('REMOTE_REMOVED_AFTER_FAILURE'); } catch (e2) {}
   // execFileSync throws on a non-zero exit; without this the script would die on a raw stack trace and
   // leave the caller to guess whether the code reached the remote.
   const why = String((e && e.stderr) || (e && e.message) || e).trim().split(/\r?\n/).filter(Boolean).slice(-3).join(' | ');

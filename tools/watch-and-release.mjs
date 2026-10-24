@@ -5,7 +5,7 @@
 //
 //   node tools/watch-and-release.mjs [--repo xinguang] [--hours 12]
 import { readFileSync, existsSync, appendFileSync, unlinkSync } from 'node:fs';
-import { execFile } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +16,7 @@ const DL = process.env.XINGUANG_DL || (existsSync(LEGACY_DL) ? LEGACY_DL : join(
 const TOKEN_FILE = join(DL, 'gh-token.txt');
 const LOG = join(DL, 'watcher.log');
 const RELEASE = join(HERE, 'gh-release.mjs');
+const CRED_FILE = join(DL, '.gitcred-tmp');
 
 function arg(name, dflt) {
   const i = process.argv.indexOf('--' + name);
@@ -31,6 +32,16 @@ if (!Number.isFinite(hours) || hours <= 0) { console.error('BAD_ARG --hours expe
 const RELEASE_TIMEOUT_MS = Number(process.env.RELEASE_TIMEOUT_MS || 20 * 60 * 1000);
 function note(m) { const line = '[' + new Date().toISOString() + '] ' + m; try { appendFileSync(LOG, line + '\n'); } catch (e) { console.error('LOG_WRITE_FAILED ' + (e && e.message) + ' :: ' + m); } console.log(line); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// gh-release wipes its temporary credential file on the way out, but a process killed outright never
+// runs that code -- and that file holds a live token in cleartext. Sweep up on the way in, so a crash
+// can only ever leave it until the next run rather than forever.
+function dropCred() { try { if (existsSync(CRED_FILE)) { unlinkSync(CRED_FILE); return true; } } catch (e) {} return false; }
+if (dropCred()) note('STALE_CRED_REMOVED ' + CRED_FILE);
+// Note: on Windows a handler is only reached for a real console Ctrl-C; a TerminateProcess kill runs
+// nothing, which is exactly why the startup sweep above exists.
+process.on('exit', dropCred);
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, function () { dropCred(); process.exit(130); });
 
 note('WATCHING for ' + TOKEN_FILE + ' (repo=' + repoName + ', up to ' + hours + 'h)');
 const deadline = Date.now() + hours * 3600 * 1000;
@@ -51,24 +62,37 @@ while (Date.now() < deadline) {
 if (!token) { note('GAVE_UP no token within ' + hours + 'h'); process.exit(3); }
 note('TOKEN_SEEN (' + token.length + ' chars, not logged) - starting the release');
 
+// Stream the child's output line by line. The release can legitimately spend minutes waiting on git,
+// and buffering until the child exits would leave the log silent for exactly the stretch where someone
+// is watching it.
 function run(cmd, args, env) {
   return new Promise(resolve => {
-    execFile(cmd, args, {
-      env: Object.assign({}, process.env, env),
-      maxBuffer: 8 * 1024 * 1024,
-      timeout: RELEASE_TIMEOUT_MS,
-      killSignal: 'SIGKILL'
-    }, (err, stdout, stderr) => {
-      let code = err ? (err.code === undefined ? 1 : err.code) : 0;
-      if (err && err.killed) { note('RELEASE_TIMEOUT after ' + Math.round(RELEASE_TIMEOUT_MS / 1000) + 's - killed'); code = 124; }
-      resolve({ code, stdout: stdout || '', stderr: stderr || '' });
+    const child = spawn(cmd, args, { env: Object.assign({}, process.env, env), stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '', stderr = '', pending = '';
+    let timedOut = false;
+    const timer = setTimeout(function () { timedOut = true; note('RELEASE_TIMEOUT after ' + Math.round(RELEASE_TIMEOUT_MS / 1000) + 's - killing'); try { child.kill('SIGKILL'); } catch (e) {} }, RELEASE_TIMEOUT_MS);
+    function feed(chunk, toStderr) {
+      const text = chunk.toString();
+      if (toStderr) stderr += text; else stdout += text;
+      pending += text;
+      const lines = pending.split(/\r?\n/);
+      pending = lines.pop();
+      for (const line of lines) if (line.trim()) note('  ' + line.trim());
+    }
+    child.stdout.on('data', function (c) { feed(c, false); });
+    child.stderr.on('data', function (c) { feed(c, true); });
+    child.on('error', function (e) { note('RELEASE_SPAWN_ERROR ' + (e && e.message)); });
+    child.on('close', function (code, signal) {
+      clearTimeout(timer);
+      if (pending.trim()) note('  ' + pending.trim());
+      resolve({ code: timedOut ? 124 : (code === null ? 1 : code), stdout: stdout, stderr: stderr, signal: signal });
     });
   });
 }
 const r = await run(process.execPath, [RELEASE, '--repo', repoName], { GITHUB_TOKEN: token });
-for (const line of (r.stdout || '').split(/\r?\n/)) if (line.trim()) note('  ' + line.trim());
 if (r.stderr && r.stderr.trim()) note('  STDERR ' + r.stderr.trim().slice(0, 800));
-note('RELEASE_EXIT ' + r.code);
+dropCred();
+note('RELEASE_EXIT ' + r.code + (r.signal ? ' (signal ' + r.signal + ')' : ''));
 if (r.code !== 0) { note('DONE_WITH_FAILURE exit=' + r.code); process.exit(r.code || 1); }
 const live = (r.stdout.match(/LIVE_URL (\S+)/) || [])[1] || '(see log)';
 note('DONE_LIVE ' + live);
