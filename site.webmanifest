@@ -1,0 +1,29 @@
+{
+  "name": "心光 · 一念升起",
+  "short_name": "心光",
+  "description": "点点点，让太阳一点点升起来。森林、海、山川与一束正念的光。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#04060c",
+  "theme_color": "#04060c",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

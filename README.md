@@ -72,6 +72,10 @@ preview/                five images used above
 screenshots/            six phases captured at 1280x720 by a headless browser
 index.html              page shell (canvas + quote + footer progress)
 serve.mjs               zero-dependency local static server
+site.webmanifest        installable as an app (icons, theme colour, standalone display)
+robots.txt              allow all crawlers
+icon-192/512.png        app icons (same mark the inline SVG favicon draws)
+apple-touch-icon.png
 tools/build-single.mjs  bundles the multi-file version into 心光.html
 vendor/three.module.js  three.js r169
 src/

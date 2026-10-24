@@ -71,6 +71,10 @@ preview/                首页展示用的五张图（首屏 / 黎明 / 既白 /
 screenshots/            六个相位各一张实拍（1280×720，由无头浏览器出图）
 index.html              页面骨架（画布 + 语录 + 页脚进度）
 serve.mjs               零依赖本地静态服务器
+site.webmanifest        可当应用安装（图标、主题色、独立窗口）
+robots.txt              允许爬虫收录
+icon-192/512.png        应用图标（与内联 SVG favicon 同一个标记）
+apple-touch-icon.png
 tools/build-single.mjs  把上面的多文件版打包成 心光.html
 vendor/three.module.js  three.js r169
 src/
