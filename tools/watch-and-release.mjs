@@ -4,7 +4,7 @@
 // pushed, Pages is switched on and the live URL is verified without anyone having to say go.
 //
 //   node tools/watch-and-release.mjs [--repo xinguang] [--hours 12]
-import { readFileSync, existsSync, appendFileSync, unlinkSync } from 'node:fs';
+import { readFileSync, existsSync, appendFileSync, unlinkSync, statSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -36,8 +36,29 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // gh-release wipes its temporary credential file on the way out, but a process killed outright never
 // runs that code -- and that file holds a live token in cleartext. Sweep up on the way in, so a crash
 // can only ever leave it until the next run rather than forever.
-function dropCred() { try { if (existsSync(CRED_FILE)) { unlinkSync(CRED_FILE); return true; } } catch (e) {} return false; }
-if (dropCred()) note('STALE_CRED_REMOVED ' + CRED_FILE);
+//
+// Only sweep a file that is demonstrably old. A second watcher (or a re-run) started while the first
+// release is mid-push would otherwise delete the credential that push is actively using and break it.
+// A live push writes this file seconds ago; a crash leftover is minutes or hours old.
+const STALE_CRED_AGE_MS = Number(process.env.STALE_CRED_AGE_MS || 120000);
+function sweepStaleCred() {
+  try {
+    if (!existsSync(CRED_FILE)) return false;
+    const age = Date.now() - statSync(CRED_FILE).mtimeMs;
+    if (age < STALE_CRED_AGE_MS) { note('CRED_FILE_IN_USE left alone (' + Math.round(age / 1000) + 's old)'); return false; }
+    unlinkSync(CRED_FILE);
+    return true;
+  } catch (e) { return false; }
+}
+if (sweepStaleCred()) note('STALE_CRED_REMOVED ' + CRED_FILE);
+// Our own child's file, on the other hand, we can remove once its release is over -- but only if we
+// actually ran one. A watcher that merely waited, gave up and exited must not delete a credential that
+// some other run is holding, which is why this is gated on releaseStarted.
+let releaseStarted = false;
+function dropCred() {
+  if (!releaseStarted) return false;
+  try { if (existsSync(CRED_FILE)) { unlinkSync(CRED_FILE); return true; } } catch (e) {} return false;
+}
 // Note: on Windows a handler is only reached for a real console Ctrl-C; a TerminateProcess kill runs
 // nothing, which is exactly why the startup sweep above exists.
 process.on('exit', dropCred);
@@ -89,6 +110,7 @@ function run(cmd, args, env) {
     });
   });
 }
+releaseStarted = true;
 const r = await run(process.execPath, [RELEASE, '--repo', repoName], { GITHUB_TOKEN: token });
 if (r.stderr && r.stderr.trim()) note('  STDERR ' + r.stderr.trim().slice(0, 800));
 dropCred();
