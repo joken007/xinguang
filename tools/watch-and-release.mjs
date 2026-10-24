@@ -28,7 +28,14 @@ const hours = Number(rawHours);
 // loop fall straight through to GAVE_UP, which reads like a successful timeout.
 if (!Number.isFinite(hours) || hours <= 0) { console.error('BAD_ARG --hours expects a positive number, got ' + JSON.stringify(rawHours)); process.exit(2); }
 // The release is bounded too: a half-dead GitHub must end in a loud failure, not a log that never moves.
-const RELEASE_TIMEOUT_MS = Number(process.env.RELEASE_TIMEOUT_MS || 20 * 60 * 1000);
+const rawReleaseTimeout = process.env.RELEASE_TIMEOUT_MS;
+const RELEASE_TIMEOUT_MS = rawReleaseTimeout === undefined ? 20 * 60 * 1000 : Number(rawReleaseTimeout);
+// Same trap as --hours: NaN goes into setTimeout, Node clamps it to 1 ms, and the release is killed
+// before it can push. A mistyped knob has to stop the run, not silently sabotage it.
+if (!Number.isFinite(RELEASE_TIMEOUT_MS) || RELEASE_TIMEOUT_MS <= 0) {
+  console.error('BAD_ENV RELEASE_TIMEOUT_MS expects a positive number, got ' + JSON.stringify(rawReleaseTimeout));
+  process.exit(2);
+}
 function note(m) { const line = '[' + new Date().toISOString() + '] ' + m; try { appendFileSync(LOG, line + '\n'); } catch (e) { console.error('LOG_WRITE_FAILED ' + (e && e.message) + ' :: ' + m); } console.log(line); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -49,6 +56,15 @@ if (!Number.isFinite(STALE_CRED_AGE_MS) || STALE_CRED_AGE_MS <= 0) {
   console.error('BAD_ENV STALE_CRED_AGE_MS expects a positive number, got ' + JSON.stringify(rawStaleAge));
   process.exit(2);
 }
+// A live pid is not proof of ownership: Windows recycles pid numbers, so once an unrelated process
+// inherits a dead release's pid, its leftover credential looks "in use" forever. Nothing legitimate
+// holds one longer than a single release (capped above), so age is the tiebreaker for that case.
+const rawMaxAge = process.env.STALE_CRED_MAX_AGE_MS;
+const STALE_CRED_MAX_AGE_MS = rawMaxAge === undefined ? 2 * 60 * 60 * 1000 : Number(rawMaxAge);
+if (!Number.isFinite(STALE_CRED_MAX_AGE_MS) || STALE_CRED_MAX_AGE_MS <= 0) {
+  console.error('BAD_ENV STALE_CRED_MAX_AGE_MS expects a positive number, got ' + JSON.stringify(rawMaxAge));
+  process.exit(2);
+}
 // .gitcred-<pid>.tmp is what gh-release writes now; .gitcred-tmp is the name older versions used.
 const CRED_RE = /^\.gitcred(?:-(\d+))?[-.]tmp$/;
 function pidAlive(pid) {
@@ -63,11 +79,16 @@ function sweepStaleCred() {
     const m = CRED_RE.exec(name);
     const ownerPid = m && m[1] ? Number(m[1]) : 0;
     try {
+      const age = Date.now() - statSync(full).mtimeMs;
       if (ownerPid) {
-        if (pidAlive(ownerPid)) { note('CRED_FILE_IN_USE left alone (pid ' + ownerPid + ' is running) ' + name); continue; }
+        if (pidAlive(ownerPid)) {
+          if (age <= STALE_CRED_MAX_AGE_MS) { note('CRED_FILE_IN_USE left alone (pid ' + ownerPid + ' is running) ' + name); continue; }
+          unlinkSync(full);
+          note('STALE_CRED_REMOVED_AGED ' + full + ' (pid ' + ownerPid + ' is alive but the file is ' + Math.round(age / 1000) + 's old)');
+          swept++; continue;
+        }
         unlinkSync(full); note('STALE_CRED_REMOVED ' + full); swept++; continue;
       }
-      const age = Date.now() - statSync(full).mtimeMs;
       if (age < STALE_CRED_AGE_MS) { note('CRED_FILE_IN_USE left alone (' + Math.round(age / 1000) + 's old) ' + name); continue; }
       unlinkSync(full); note('STALE_CRED_REMOVED ' + full); swept++;
     } catch (e) {}
