@@ -246,6 +246,7 @@ xinguang.is-a.dev
 
 ## 七、最小行动清单（给用户）
 
+- [ ] （随时）跑一次 `node tools/preflight.mjs`：它逐行列出发布前还缺什么，只读不改。
 - [ ] 提供 **GitHub 用户名** 与一个**邮箱**。
  - [ ] 想好要申请的 **is-a.dev 子域名字**（建议 `mindlight` / `xinguang` / `xin-guang`）。
 - [ ] fork `is-a-dev/register`，用第三节的 JSON 模板建文件（记得填 `owner.email`）、提 PR（描述保留官方模板并逐项勾选、填链接与用途）。

@@ -7,7 +7,8 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，42 个提交 / 54 个文件，工作区干净） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，43 个提交 / 55 个文件，工作区干净） |
+| 发布前体检 | ✅ `node tools/preflight.mjs` 一条命令列出「还缺什么」（令牌/仓库/Pages/DNS/工作区），只读不改 |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
 | 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当时全部提交 / 53 个文件真的推了起来，站点自检 200） |
 | 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
@@ -15,6 +16,27 @@
 | 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开；推送后 `.github/workflows/check.yml` 会再验一遍 |
 | 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排，且已按 is-a.dev 2026-10 的新规则改造：PR 正文用官方模板现抓现填、域名文件带 `owner.email`；`xinguang.is-a.dev` 今天实测仍是空的，`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
 | PR 合并后把域名挂到 Pages（填 cname → 开 HTTPS → 验线上） | ✅ 脚本已就绪并彩排（`tools/gh-custom-domain.mjs`，原来要人去 Settings 手点） |
+
+## 第零步：先体检（随时可以跑）
+
+不确定现在卡在哪？跑这一条，它只读不写（不提交、不推送、不建文件），把结论按行打出来：
+
+```bash
+node tools/preflight.mjs            # 也可以 npm run preflight
+node tools/preflight.mjs --json     # 给脚本看的结构化输出
+```
+
+它检查的是：`node` / `git` 能不能用、这个 checkout 是不是干净、仓库有没有 `user.name`/`user.email`（没配的话
+`publish-polish` 会在提交那步以退出码 `7` 失败）、单文件版 `心光.html` 是否比源码旧、有没有令牌、令牌是否被接受、
+仓库和 Pages 现在是什么状态、以及 `xinguang.is-a.dev` 的 DNS 解析到了没有。最后一行的 `SUMMARY` 会直接说出
+还差什么，比如现在这台机器上的结果就是：
+
+```text
+FAIL TOKEN: not found -- run: node tools/gh-auth.mjs start, or leave a repo-scoped token at E:\shiguang-testbed\dl\gh-token.txt
+SUMMARY blocked on: TOKEN
+```
+
+退出码：`0` 都齐了 · `2` 没令牌 · `3` 令牌被拒 · `4` 这个 checkout 本身不可用 · `6` GitHub 没应答。
 
 ## 第一步：给我一个 GitHub 授权（三选一）
 
@@ -202,6 +224,7 @@ node tools/publish-polish.mjs --url https://xinguang.is-a.dev/ --push
 
 | 脚本 | 退出码 |
 | --- | --- |
+| `preflight` | `0` 都齐了 · `2` 没有令牌 · `3` 令牌被拒 · `4` checkout 不可用（不是仓库 / 没有 git） · `6` GitHub 没应答（含 5xx） |
 | `gh-release` | `0` 成功 · `1` **线上站点验证失败** · `2` 没有令牌 · `3` 令牌无效 · `4` 建仓库失败 · `5` **推送失败**（含超时） · `6` **网络不通/超时** · `7` 开 Pages 失败 |
 | `gh-domain` | `0` 成功 · `2` 没有令牌 / 没给 `--email` 或邮箱格式不对 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `6`/`7` 建分支失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
 | `publish-polish` | `0` 成功 · `2` 没有令牌 / `--url` 缺失或不是 http(s) 地址 · `4` 仓库里没有 `origin`（先跑 `gh-release`） · `5` **推送失败** · `6` 重打包单文件版失败 · `7` 提交失败（仓库没配 `user.name` / `user.email`） |
