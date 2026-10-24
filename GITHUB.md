@@ -13,7 +13,7 @@
 | 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点（已彩排） |
 | 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
 | 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开；推送后 `.github/workflows/check.yml` 会再验一遍 |
-| 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排；`xinguang.is-a.dev` 今天实测仍是空的：访问会跳去 is-a.dev 的「available」页，`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
+| 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排；`xinguang.is-a.dev` 今天实测仍是空的：访问会落到 is-a.dev 的「Available Domain」页（HTTP 200），`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
 
 ## 第一步：给我一个 GitHub 授权（三选一）
 
@@ -114,7 +114,7 @@ node tools/publish-polish.mjs --url https://<你的用户名>.github.io/xinguang
 
 它做四件事：把 `index.html` 的 `og:image` / `twitter:image` 改成绝对地址并补上 `og:url`；把 `README.md` / `README.zh-CN.md` 里的演示地址换掉；把本文档状态表里「推送到 GitHub」「开启 Pages」两行改成 ✅；然后重打包 `心光.html`（它内联了 `index.html`，不改就会过期），最后一并提交推送。
 
-几个刻意的设计：**幂等**——第二次跑只会打 `ALREADY` / `NO_CHANGES`；**先探路再动手**——带 `--push` 时会先确认令牌和 `origin` 都在，缺一个直接 `NO_TOKEN` / `NO_ORIGIN` 退出，不会留下一笔「声称了地址、却没推上去」的提交；`--dry-run` 只看会改什么不落盘；推送同样用临时凭据文件、`finally` 删除。
+几个刻意的设计：**幂等**——第二次跑只会打 `ALREADY` / `NO_CHANGES`；**地址变了也能再跑**——站点先挂在 `<用户名>.github.io/xinguang/`，以后绑上 `xinguang.is-a.dev` 这类自定义域名时，用新地址再跑一次，它会把之前写进去的绝对地址整体改过去（同样的地址再跑则是 `NO_CHANGES`）；**先探路再动手**——带 `--push` 时会先确认令牌和 `origin` 都在，缺一个直接 `NO_TOKEN` / `NO_ORIGIN` 退出，不会留下一笔「声称了地址、却没推上去」的提交；`--dry-run` 只看会改什么不落盘；推送同样用临时凭据文件、`finally` 删除。
 ## 第三步：免费域名（可选但推荐）
 
 详细调研见 [`docs/free-domain.md`](docs/free-domain.md)，结论是两条腿走路：
@@ -178,6 +178,6 @@ node tools/gh-domain.mjs --domain xinguang      # 查重名 → fork → 建分�
 | --- | --- |
 | `gh-release` | `0` 成功 · `1` **线上站点验证失败** · `2` 没有令牌 · `3` 令牌无效 · `4` 建仓库失败 · `5` **推送失败**（含超时） · `6` **网络不通/超时** · `7` 开 Pages 失败 |
 | `gh-domain` | `0` 成功 · `2` 没有令牌 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `6`/`7` 建分支失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
-| `publish-polish` | `0` 成功 · `2` 没有令牌 / `--url` 缺失或不是 http(s) 地址 · `4` 仓库里没有 `origin`（先跑 `gh-release`） · `5` **推送失败** · `6` 重打包单文件版失败 |
+| `publish-polish` | `0` 成功 · `2` 没有令牌 / `--url` 缺失或不是 http(s) 地址 · `4` 仓库里没有 `origin`（先跑 `gh-release`） · `5` **推送失败** · `6` 重打包单文件版失败 · `7` 提交失败（仓库没配 `user.name` / `user.email`） |
 | `watch-and-release` | `0` 发布成功 · `2` `--hours` 参数不合法 · `3` 等不到令牌 · `124` 发布超过 20 分钟被掐断 · 其余 = `gh-release` 的退出码 |
 **国内打不开 github.io？** 用方案里的 Cloudflare Pages 镜像，同一个仓库可以同时挂两份。

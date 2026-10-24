@@ -174,8 +174,14 @@ function git(args, timeout = 300000) {
 git(['add', '-A']);
 if (!git(['status', '--porcelain']).trim()) { console.log('COMMIT_SKIPPED nothing staged'); process.exit(0); }
 const msg = 'site: point metadata at the live URL';
-git(['commit', '-m', msg]);
-console.log('COMMITTED ' + git(['rev-parse', '--short', 'HEAD']).trim() + ' ' + msg);
+try {
+  git(['commit', '-m', msg]);
+  console.log('COMMITTED ' + git(['rev-parse', '--short', 'HEAD']).trim() + ' ' + msg);
+} catch (e) {
+  const why = String((e && e.stderr) || (e && e.message) || e).trim().split(String.fromCharCode(10)).filter(Boolean).slice(-2).join(' | ');
+  console.log('COMMIT_FAILED ' + why.slice(0, 400) + ' :: set user.name and user.email in this repository (git config user.email ...)');
+  process.exit(7);
+}
 
 if (!shouldPush) { console.log('NOT_PUSHED (pass --push when the token is around)'); process.exit(0); }
 
