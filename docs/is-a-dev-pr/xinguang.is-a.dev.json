@@ -1,6 +1,7 @@
 {
     "owner": {
-        "username": "<your-github-username>"
+        "username": "<your-github-username>",
+        "email": "<your-email>"
     },
     "records": {
         "CNAME": "<your-github-username>.github.io"

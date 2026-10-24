@@ -7,13 +7,13 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，40 个提交 / 53 个文件，工作区干净） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，41 个提交 / 53 个文件，工作区干净） |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
-| 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当前全部 40 个提交 / 53 个文件真的推了起来，站点自检 200） |
+| 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当时全部提交 / 53 个文件真的推了起来，站点自检 200） |
 | 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
 | 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
 | 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开；推送后 `.github/workflows/check.yml` 会再验一遍 |
-| 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排；`xinguang.is-a.dev` 今天实测仍是空的：访问会落到 is-a.dev 的「Available Domain」页（HTTP 200），`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
+| 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排，且已按 is-a.dev 2026-10 的新规则改造：PR 正文用官方模板现抓现填、域名文件带 `owner.email`；`xinguang.is-a.dev` 今天实测仍是空的，`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
 
 ## 第一步：给我一个 GitHub 授权（三选一）
 
@@ -150,10 +150,16 @@ xinguang.is-a.dev
 上面这一整套仓库里已经有脚本做掉了：
 
 ```bash
-node tools/gh-domain.mjs --domain xinguang      # 查重名 → fork → 建分支 → 写 JSON → 开 PR
+node tools/gh-domain.mjs --domain xinguang --email you@example.com --dry-run   # 先看它会提交什么
+node tools/gh-domain.mjs --domain xinguang --email you@example.com             # 查重名 → fork → 建分支 → 写 JSON → 开 PR
 ```
 
-> PR 正文它会按官方模板填好（域名 / 描述 / 线上地址 / 预览图 / 两个勾选项）。但 is-a.dev 官方明确写着 **申请文字必须由人自己写、用 AI 生成的一定会被拒**，所以开完 PR 请你去把那几行描述改成自己的话再等维护者看。
+`--email` 现在是必填的：is-a.dev 2026-10 起要求域名文件里带联系方式（`owner.email`，**会公开在仓库里**），
+缺了会直接 `NO_CONTACT` 退出。PR 正文它会**现抓官方模板再填**——注释原样保留、每一项要求勾选，
+站点链接与用途分别填进 `<!-- WEBSITE_PREVIEW_START/END -->` 与 `<!-- WEBSITE_PURPOSE_START/END -->` 之间
+（上游取不到模板时用脚本内置快照，并在输出里打 `PR_TEMPLATE snapshot`）。
+另外两条硬规则：根子域必须**与软件开发相关**（心光是 three.js / WebGL 开源项目，符合）、**非商业**。
+但 is-a.dev 官方明确写着 **申请文字必须由人自己写、用 AI 生成的一定会被拒**，所以开完 PR 请你去把那几段描述改成自己的话再等维护者看。
 
 仓库根目录的 `CNAME` 文件不用你手写：在 Settings 里填完自定义域，GitHub 会自动提交一个只有一行域名、不带 `https://`、不带路径的 `CNAME`。
 > 如果你以后换成自己控 DNS 的域名（比如买了顶级域），那时才需要「先填自定义域、再加 DNS」的防抢注顺序。
@@ -177,7 +183,7 @@ node tools/gh-domain.mjs --domain xinguang      # 查重名 → fork → 建分�
 | 脚本 | 退出码 |
 | --- | --- |
 | `gh-release` | `0` 成功 · `1` **线上站点验证失败** · `2` 没有令牌 · `3` 令牌无效 · `4` 建仓库失败 · `5` **推送失败**（含超时） · `6` **网络不通/超时** · `7` 开 Pages 失败 |
-| `gh-domain` | `0` 成功 · `2` 没有令牌 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `6`/`7` 建分支失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
+| `gh-domain` | `0` 成功 · `2` 没有令牌 / 没给 `--email` 或邮箱格式不对 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `6`/`7` 建分支失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
 | `publish-polish` | `0` 成功 · `2` 没有令牌 / `--url` 缺失或不是 http(s) 地址 · `4` 仓库里没有 `origin`（先跑 `gh-release`） · `5` **推送失败** · `6` 重打包单文件版失败 · `7` 提交失败（仓库没配 `user.name` / `user.email`） |
 | `watch-and-release` | `0` 发布成功（含随后的元数据收尾） · `2` `--hours` / 环境变量不合法 · `3` 等不到令牌 · `124` 发布超过 20 分钟被掐断 · 其余 = `gh-release` 的退出码。收尾那一步失败**不**改变退出码，因为站点本身已经上线了 —— 它会把 `POLISH_FAILED` 和该敲的命令写进同一行 `DONE_LIVE` 日志 |
 **国内打不开 github.io？** 用方案里的 Cloudflare Pages 镜像，同一个仓库可以同时挂两份。

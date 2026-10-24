@@ -3,16 +3,22 @@
 申请 `xinguang.is-a.dev`，指向 GitHub Pages 上的心光站点。**格式已按 is-a.dev 官方文档核对过**
 （来源：https://docs.is-a.dev/quickstart/ 与 https://docs.is-a.dev/guides/github-pages/ ）。
 
+> 2026-10-25 复核：is-a.dev 现在要求 **`owner` 块里带联系方式**（`email` 字段），并且 PR 描述
+> 必须原样保留他们的模板、逐项勾选、在 `<!-- WEBSITE_PREVIEW_START -->` 与
+> `<!-- WEBSITE_PURPOSE_START -->` 之间填站点链接与用途。下面这份材料和脚本都已按新规则更新。
+
 ## 已准备好的东西
 
-- `xinguang.is-a.dev.json` —— 域名注册文件，只需把 2 处占位符换成你的 GitHub 用户名。
+- `xinguang.is-a.dev.json` —— 域名注册文件，把 3 处占位符换成 GitHub 用户名与邮箱。
 
-官方格式只有两个字段：`owner.username` 与 `records`（注意是复数 `records`，不是 `record`）。
+必填字段是 `owner.username`、`owner.email`（联系方式，**会公开在仓库里**）与 `records`
+（注意是复数 `records`，不是 `record`）。
 
 ```json
 {
     "owner": {
-        "username": "your-github-username"
+        "username": "your-github-username",
+        "email": "you@example.com"
     },
     "records": {
         "CNAME": "your-github-username.github.io"
@@ -24,13 +30,13 @@
 
 1. **网站已经在线且内容完整**：`https://<你的用户名>.github.io/xinguang/` 能打开，不能是空白页。
 2. **是非商业的、软件开发相关的项目**（个人站点 / 作品集 / 开源软件项目）。心光是 three.js / WebGL 开源项目，符合。
-3. PR 描述里要给出**站点链接 + 一张站点截图**。
+3. PR 描述里要给出**站点链接**（模板里 `WEBSITE_PREVIEW` 标记之间只放链接，不要放图片）与**网站用途**（`WEBSITE_PURPOSE` 标记之间）。
 4. ⚠️ 官方明确写着：**不要用 AI 生成申请内容**（"Do not use AI to generate your request, it WILL always get it wrong"）。
    所以这份材料只是把格式和路径准备好，**PR 描述请你自己写**，别整段照搬。
 
 ## 三步提交
 
-1. 把 JSON 里的两处 `<your-github-username>` 换成你的 GitHub 登录名。
+1. 把 JSON 里的两处 `<your-github-username>` 换成你的 GitHub 登录名，`<your-email>` 换成能联系到你的邮箱（公开可见）。
 2. fork `is-a-dev/register`，在 `domains/` 目录下新建文件 **`xinguang.is-a.dev.json`**
    （文件名 = 你要的域名全称 + `.json`，小写；二级域就写 `xinguang.is-a.dev.json`，不要写 `www.` 前缀）。
 3. 向 `is-a-dev/register` 的默认分支提 Pull Request，**保留官方 PR 模板**并逐项填好，附上站点链接与截图。
@@ -40,11 +46,13 @@
 有 GitHub 令牌后（见 [`GITHUB.md`](../../GITHUB.md) 第一步）：
 
 ```bash
-node tools/gh-domain.mjs --domain xinguang --dry-run   # 先看它会提交什么（含 PR 正文预览）
-node tools/gh-domain.mjs --domain xinguang             # 真的提交
+node tools/gh-domain.mjs --domain xinguang --email you@example.com --dry-run   # 先看它会提交什么（含 PR 正文预览）
+node tools/gh-domain.mjs --domain xinguang --email you@example.com             # 真的提交
 ```
 
 它会自动：检查 `xinguang` 是否被占用 → fork → 建分支 → 写入 `domains/xinguang.is-a.dev.json` → 开 PR，最后打印 PR 链接。
+PR 正文是按 is-a.dev 的模板现抓现填的（模板取不到时用脚本内置的快照），预览链接与用途自动填进标记之间；
+`--dry-run` 只打印，不动远程。
 **合并仍然要等 is-a.dev 维护者**（几小时到 3 天）。
 
 ## 合并之后（顺序不能反）

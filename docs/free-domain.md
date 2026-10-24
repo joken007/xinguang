@@ -116,7 +116,7 @@
 - **拿到**：`xinguang.is-a.dev`（或 `心光` 的拼音/英文名，如 `mindlight.is-a.dev`），指向现有的 GitHub Pages 仓库。
 - **用户要做的事**：
   1. 选一个未被占用的名字（在 `domains/` 目录搜一下有没有同名文件）。
-  2. fork `is-a-dev/register`，把下方 JSON 存成 `domains/<名字>.json`，提 PR（PR 描述**必须照抄模板全部勾选**）。
+  2. fork `is-a-dev/register`，把下方 JSON 存成 `domains/<名字>.json`，提 PR（**PR 描述必须原样保留官方模板**：注释不能删、每项要求勾选，并在标记之间填站点链接与用途）。
   3. 等待合并（约几小时~3 天）。
   4. 合并后到 GitHub 仓库 **Settings → Pages → Custom domain** 填 `<名字>.is-a.dev` 并保存（会自动生成 CNAME 文件）。
   5. 等 DNS 生效后勾选 **Enforce HTTPS**。
@@ -125,7 +125,8 @@
 ~~~json
 {
     "owner": {
-        "username": "你的GitHub用户名"
+        "username": "你的GitHub用户名",
+        "email": "你的邮箱"
     },
     "records": {
         "CNAME": "你的GitHub用户名.github.io"
@@ -133,9 +134,11 @@
 }
 ~~~
 
-> ⚠️ 字段名是 **`records`（复数）**，`owner` 里只需要 `username`。
-> 上面这个格式是 2026-10-25 从官方文档 <https://docs.is-a.dev/quickstart/> 与
-> <https://docs.is-a.dev/guides/github-pages/> 核对的；网上不少教程还在用旧的 `record`（单数），会被 CI 判为格式错误。
+> ⚠️ 字段名是 **`records`（复数）**；`owner` 里必须有 `username`，并且**带联系方式**（`email`，会公开在仓库里；
+> 官方也接受 Twitter / Discord，但 email 是最省事的）。
+> 格式是 2026-10-25 从官方文档 <https://docs.is-a.dev/quickstart/>、<https://docs.is-a.dev/guides/github-pages/>
+> 与 <https://github.com/is-a-dev/register/blob/main/.github/PULL_REQUEST_TEMPLATE.md> 复核的；
+> 网上不少教程还在用旧的 `record`（单数）、或没写联系方式，都会被校验判错。
 
 - **理由**：免费、无需续期、审核快、天然支持 CNAME、社区口碑好；「心光」属开发项目，符合其非商业+开发相关门槛。
 
@@ -244,7 +247,7 @@ xinguang.is-a.dev
 
 - [ ] 提供 **GitHub 用户名** 与一个**邮箱**。
  - [ ] 想好要申请的 **is-a.dev 子域名字**（建议 `mindlight` / `xinguang` / `xin-guang`）。
-- [ ] fork `is-a-dev/register`，用第三节的 JSON 模板建文件、提 PR（描述照抄模板勾选）。
+- [ ] fork `is-a-dev/register`，用第三节的 JSON 模板建文件（记得填 `owner.email`）、提 PR（描述保留官方模板并逐项勾选、填链接与用途）。
 - [ ] 合并后：GitHub 仓库 Settings → Pages → 填自定义域 → 保存。
 - [ ] DNS 面板加一条 **CNAME**：`<名字>` → `你的用户名.github.io`。
 - [ ] 生效后勾选 **Enforce HTTPS**。

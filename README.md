@@ -152,7 +152,7 @@ there is no build step. The whole release is scripted:
 | `npm run auth` | GitHub device-code login; the code renews itself and the token lands outside the repo |
 | `npm run release` | create the repo, push `main`, enable Pages, wait for the build, **then open the live URL and verify it** |
 | `npm run polish -- --url <live-url> [--push]` | rewrite the placeholder addresses in the metadata and docs to the real URL, rebuild the single-file bundle, commit (and push) |
-| `npm run domain` | open a pull request for a free `xinguang.is-a.dev` subdomain |
+| `npm run domain -- --email you@example.com` | open a pull request for a free `xinguang.is-a.dev` subdomain (the address becomes the required, public contact field in the domain file) |
 | `npm run verify -- <url>` | check any deployed URL on its own (index 200 + markers + every referenced asset) |
 
 Step-by-step instructions, including the free-domain route, are in [GITHUB.md](GITHUB.md).
