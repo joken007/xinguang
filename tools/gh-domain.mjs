@@ -12,6 +12,7 @@ const LEGACY_DL = 'E:/shiguang-testbed/dl';
 const HOME_DL = _join(_homedir(), '.xinguang-release');
 const DL = process.env.XINGUANG_DL || (_exists(LEGACY_DL) ? LEGACY_DL : HOME_DL);
 const UPSTREAM = 'is-a-dev/register';
+const API_BASE = process.env.GH_API || 'https://api.github.com'; // GH_API is an offline-rehearsal hook
 
 function arg(name, dflt) {
   const i = process.argv.indexOf('--' + name);
@@ -30,7 +31,7 @@ if (!token) { console.log('NO_TOKEN'); process.exit(2); }
 if (process.argv.includes('--email')) console.log('NOTE --email is no longer part of the is-a.dev schema; ignoring it');
 
 async function api(method, path, body) {
-  const res = await fetch('https://api.github.com' + path, {
+  const res = await fetch(API_BASE + path, {
     method: method,
     headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'xinguang-domain', 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined
@@ -116,5 +117,5 @@ console.log(body);
 console.log('--- end');
 const pr = await api('POST', '/repos/' + UPSTREAM + '/pulls', { title: 'Add ' + full, head: owner + ':' + branch, base: defaultBranch, body: body });
 if (pr.status === 201) console.log('PR_OPENED ' + pr.json.html_url);
-else console.log('PR_FAILED ' + pr.status + ' ' + JSON.stringify(pr.json).slice(0, 400));
+else { console.log('PR_FAILED ' + pr.status + ' ' + JSON.stringify(pr.json).slice(0, 400)); process.exit(9); }
 console.log('REMINDER is-a.dev asks that the request be written by a human: open the PR and rewrite the description in your own words before a maintainer looks at it.');
