@@ -92,6 +92,29 @@ export async function verifyLive(url, opts) {
   if (bundle.status !== 200) warnings.push(bundleRel + ' is not reachable (' + (bundle.status || bundle.error) + '): the single-file build is missing from the deployment');
   else if (!bundle.body.includes('心光')) warnings.push(bundleRel + ' does not look like the app');
 
+  // Install metadata (the manifest and its icons) does not break the page if it 404s, so it is
+  // reported as warnings: the site still works, it just cannot be installed and the browser tab
+  // has no icon.
+  const manRel = 'site.webmanifest';
+  const man = await get(new URL(manRel, base).href, timeout);
+  if (man.status !== 200) warnings.push(manRel + ' is not reachable (' + (man.status || man.error) + '): no install metadata');
+  else {
+    let meta = null;
+    try { meta = JSON.parse(man.body); } catch (e) { warnings.push(manRel + ' is not valid JSON'); }
+    if (meta) {
+      notes.push('manifest name=' + (meta.name || '(none)') + ', icons=' + ((meta.icons || []).length));
+      if (!meta.name) warnings.push(manRel + ' has no name');
+      for (const ic of (meta.icons || [])) {
+        const src = ic && ic.src;
+        if (!src) continue;
+        const ir = await get(new URL(src.replace(/^\.\//, ''), base).href, timeout);
+        notes.push('GET ' + src + ' -> ' + (ir.status || ir.error));
+        if (ir.status !== 200) warnings.push(src + ' (manifest icon) status ' + (ir.status || ir.error));
+        else if (!/image\//i.test(ir.ctype)) warnings.push(src + ' is served as ' + (ir.ctype || 'no content-type'));
+      }
+    }
+  }
+
   return { ok: failures.length === 0, notes: notes, failures: failures, warnings: warnings };
 }
 

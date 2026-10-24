@@ -178,13 +178,32 @@ else if (pages.status === 0) { console.log('NETWORK_FAILED /pages ' + JSON.strin
 else { console.log('PAGES_SETUP status=' + pages.status + ' ' + JSON.stringify(pages.json).slice(0, 300)); process.exit(7); }
 
 const url = (LIVE_BASE || ('https://' + owner + '.github.io')) + '/' + repoName + '/';
+const PAGES_POLL_MS = (function () { const v = Number(process.env.GH_PAGES_POLL_MS); return v > 0 ? v : 15000; })();
+let buildStatus = null;
 for (let i = 0; i < 20; i++) {
-  await new Promise(function (r) { setTimeout(r, 15000); });
+  await new Promise(function (r) { setTimeout(r, PAGES_POLL_MS); });
   const st = await api('GET', '/repos' + pagesRepo + '/pages');
   const status = st.json && st.json.status;
+  buildStatus = status === undefined ? null : status;
   console.log('PAGES_BUILD ' + (i + 1) + '/20 status=' + status);
   if (status === 'built') break;
-  if (status === 'errored') { console.log('PAGES_ERRORED ' + JSON.stringify(st.json).slice(0, 300)); break; }
+  if (status === 'errored') {
+    // A failed Pages build is not a flaky deploy that a retry can fix: the site will answer 404
+    // until the build itself is repaired. Say what GitHub said and stop with a code that names
+    // it, instead of letting it read like 'the deployed site did not answer'.
+    let why = '';
+    try {
+      const lb = await api('GET', '/repos' + pagesRepo + '/pages/builds/latest');
+      const msg = lb.json && lb.json.error && lb.json.error.message;
+      if (msg) why = String(msg).slice(0, 300);
+    } catch (e) { why = String((e && e.message) || e).slice(0, 200); }
+    console.log('PAGES_ERRORED ' + (why || JSON.stringify(st.json).slice(0, 300)));
+    console.log('ERROR: GitHub Pages could not build this repository, so there is nothing to verify. The build log is at https://github.com/' + owner + '/' + repoName + '/actions. Exiting with code 8.');
+    process.exit(8);
+  }
+}
+if (buildStatus !== 'built') {
+  console.log('PAGES_BUILD_UNFINISHED last=' + buildStatus + ' (verifying anyway: the very first build can take longer than the 5 minute budget)');
 }
 
 // Verify the deployed site actually serves the app (retry: the first build can lag the API status).
