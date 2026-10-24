@@ -72,7 +72,7 @@ node tools/gh-release.mjs --repo xinguang
 > 跑完 `origin` 会留在仓库里（脚本故意不自动删，方便你接着手动 `git push`）。不想要就 `git remote remove origin`。
 > 但**推送失败时脚本会自己把 `origin` 摘掉**并打印 `REMOTE_REMOVED_AFTER_FAILURE`，免得你对着一个指向失败 push 的 remote 猜发生了什么。
 >
-> 中断残留也考虑到了：临时凭据文件由 `finally` 删除，脚本还会在**启动时先扫一遍**上一次被强杀留下的 `.gitcred-tmp`（打印 `STALE_CRED_REMOVED`）。注意 Windows 上 Node 的 `SIGTERM`/`SIGINT` 处理器对 `TerminateProcess` 强杀**根本不会运行**，所以真正的兜底是这次启动清扫，而不是信号处理。
+> 中断残留也考虑到了：临时凭据文件由 `finally` 删除，脚本还会在**启动时先扫一遍**上一次被强杀留下的 `.gitcred-tmp`（打印 `STALE_CRED_REMOVED`）。清扫只认「两分钟以上没动过」的文件，正在跑的 release 用的活凭据会打印 `CRED_FILE_IN_USE left alone` 并被放过 —— 免得你手滑起两个 watcher 时，后一个把前一个正在用的凭据删掉。注意 Windows 上 Node 的 `SIGTERM`/`SIGINT` 处理器对 `TerminateProcess` 强杀**根本不会运行**，所以真正的兜底是这次启动清扫，而不是信号处理。
 
 ### 需要你拍板的三个默认值
 
