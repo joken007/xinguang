@@ -62,6 +62,7 @@ three.js（r169）已放在 `vendor/three.module.js`，不需要 npm install。
 | `npm run release` | 建仓库 → 推送 → 开启 Pages → 轮询构建 → **真打开线上地址验一遍** |
 | `npm run polish -- --url <线上地址> [--push]` | 把元数据和文档里的占位地址改成真实地址、重打包单文件版、提交（并可推送） |
 | `npm run domain -- --email you@example.com` | 向 `is-a-dev/register` 提 PR 申请 `xinguang.is-a.dev`（邮箱是必填的公开联系方式） |
+| `npm run custom-domain -- --domain xinguang.is-a.dev` | PR 合并后把自定义域填进 Pages、等它生效、开强制 HTTPS、再验线上 |
 | `npm run verify -- <url>` | 独立校验任意已部署地址（首页 200 + 标记齐全 + 依赖全 200） |
 
 ## 目录

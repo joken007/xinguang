@@ -11,6 +11,7 @@
     "release": "node tools/gh-release.mjs",
     "polish": "node tools/publish-polish.mjs",
     "domain": "node tools/gh-domain.mjs --domain xinguang",
+    "custom-domain": "node tools/gh-custom-domain.mjs",
     "verify": "node tools/verify-live.mjs",
     "watch": "node tools/watch-and-release.mjs"
   },

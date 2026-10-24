@@ -57,9 +57,17 @@ PR 正文是按 is-a.dev 的模板现抓现填的（模板取不到时用脚本�
 
 ## 合并之后（顺序不能反）
 
-1. GitHub 仓库 → **Settings → Pages → Custom domain**：填 `xinguang.is-a.dev`，保存。
-   ⚠️ 官方强调必须在**合并之后**再填；提前填会导致 404 或指向错误站点。
-2. 勾选 **Enforce HTTPS**。
+1. 把域名填进 **Settings → Pages → Custom domain** 并勾 **Enforce HTTPS**（这一步也脚本化了）：
+
+   ```bash
+   node tools/gh-custom-domain.mjs --domain xinguang.is-a.dev --dry-run   # 先看计划
+   node tools/gh-custom-domain.mjs --domain xinguang.is-a.dev            # 填 cname → 等生效 → 开 HTTPS → 验线上
+   ```
+
+   ⚠️ 官方强调必须在**合并之后**再填；提前填会导致 404 或指向错误站点。脚本会先确认 Pages 已开着
+   （没开会 `PAGES_NOT_ENABLED` 退出 `4`），填完后轮询到 Pages 认到新 cname，再尝试强制 HTTPS
+   （证书最长要等 1 小时，这时只打 `HTTPS_PENDING` 警告、不算失败），最后用 `verify-live` 验一次。
+2. 手动的话就是同样的两步：**Settings → Pages → Custom domain** 填 `xinguang.is-a.dev` 保存，然后勾 **Enforce HTTPS**。
 3. DNS 由 is-a.dev 按 `records.CNAME` 配好（`→ <你的用户名>.github.io`），你自己不用加记录。
    将来若换成自己控 DNS 的域名，子域场景同样只需这一条 CNAME；
    顶级域才需要 A `185.199.108.153` ~ `185.199.111.153` 与 AAAA `2606:50c0:8000::153` ~ `2606:50c0:8003::153`。

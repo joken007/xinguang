@@ -119,7 +119,8 @@
   2. fork `is-a-dev/register`，把下方 JSON 存成 `domains/<名字>.json`，提 PR（**PR 描述必须原样保留官方模板**：注释不能删、每项要求勾选，并在标记之间填站点链接与用途）。
   3. 等待合并（约几小时~3 天）。
   4. 合并后到 GitHub 仓库 **Settings → Pages → Custom domain** 填 `<名字>.is-a.dev` 并保存（会自动生成 CNAME 文件）。
-  5. 等 DNS 生效后勾选 **Enforce HTTPS**。
+     「心光」仓库里这一步也是脚本：`node tools/gh-custom-domain.mjs --domain <名字>.is-a.dev`，它填 cname、等 Pages 认到、再开 HTTPS 并验线上。
+  5. 等 DNS 生效后勾选 **Enforce HTTPS**（脚本会尝试，证书没就绪时只警告不失败）。
 - **申请 JSON 模板（需替换占位符）**：
 
 ~~~json
@@ -248,8 +249,8 @@ xinguang.is-a.dev
 - [ ] 提供 **GitHub 用户名** 与一个**邮箱**。
  - [ ] 想好要申请的 **is-a.dev 子域名字**（建议 `mindlight` / `xinguang` / `xin-guang`）。
 - [ ] fork `is-a-dev/register`，用第三节的 JSON 模板建文件（记得填 `owner.email`）、提 PR（描述保留官方模板并逐项勾选、填链接与用途）。
-- [ ] 合并后：GitHub 仓库 Settings → Pages → 填自定义域 → 保存。
-- [ ] DNS 面板加一条 **CNAME**：`<名字>` → `你的用户名.github.io`。
-- [ ] 生效后勾选 **Enforce HTTPS**。
+- [ ] 合并后：GitHub 仓库 Settings → Pages → 填自定义域 → 保存（或用 `node tools/gh-custom-domain.mjs --domain <名字>.is-a.dev` 一次做完填域/等生效/开 HTTPS/验线上）。
+- [ ] DNS 不用自己加：is-a.dev 按域名 JSON 里的 `records.CNAME` 配 `<名字>` → `你的用户名.github.io`（只有换成自己控 DNS 的域名时才需要自己加这条记录）。
+- [ ] HTTPS：脚本会尝试勾选；证书没签发好时等最多 1 小时再跑一次。
 - [ ] （可选，强烈建议）注册 Cloudflare，把同一仓库接一个 Pages 项目做镜像。
 

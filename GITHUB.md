@@ -7,13 +7,14 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，41 个提交 / 53 个文件，工作区干净） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，42 个提交 / 54 个文件，工作区干净） |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
 | 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当时全部提交 / 53 个文件真的推了起来，站点自检 200） |
 | 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
 | 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
 | 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开；推送后 `.github/workflows/check.yml` 会再验一遍 |
 | 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排，且已按 is-a.dev 2026-10 的新规则改造：PR 正文用官方模板现抓现填、域名文件带 `owner.email`；`xinguang.is-a.dev` 今天实测仍是空的，`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
+| PR 合并后把域名挂到 Pages（填 cname → 开 HTTPS → 验线上） | ✅ 脚本已就绪并彩排（`tools/gh-custom-domain.mjs`，原来要人去 Settings 手点） |
 
 ## 第一步：给我一个 GitHub 授权（三选一）
 
@@ -164,6 +165,25 @@ node tools/gh-domain.mjs --domain xinguang --email you@example.com             #
 仓库根目录的 `CNAME` 文件不用你手写：在 Settings 里填完自定义域，GitHub 会自动提交一个只有一行域名、不带 `https://`、不带路径的 `CNAME`。
 > 如果你以后换成自己控 DNS 的域名（比如买了顶级域），那时才需要「先填自定义域、再加 DNS」的防抢注顺序。
 
+### PR 合并之后：把域名挂到 Pages 上
+
+is-a.dev 合并 PR 后，那边配的 DNS 记录通常几分钟到几十分钟才生效。剩下的两步也能交给脚本：
+
+```bash
+node tools/gh-custom-domain.mjs --domain xinguang.is-a.dev --dry-run   # 只看计划，不写任何东西
+node tools/gh-custom-domain.mjs --domain xinguang.is-a.dev            # 填 cname → 等 Pages 认到 → 开 HTTPS → 验线上
+```
+
+它会先确认 Pages 已经开着（没开会直接 `PAGES_NOT_ENABLED` 退出 `4`——这时填域名只会指到空站点），
+然后 `PUT` 自定义域、轮询到 Pages 认到新 cname、再尝试 **Enforce HTTPS**（证书签发最长可能要一小时，
+这时只打 `HTTPS_PENDING` 警告、不算失败），最后用 `verify-live` 验一次首页与它引用的本地资源。
+
+地址从 `<owner>.github.io/<repo>/` 换成自定义域名之后，社交预览里的绝对地址也要跟着改（再跑一次即可，
+`publish-polish` 按模式匹配整行改写，认得出旧地址）：
+
+```bash
+node tools/publish-polish.mjs --url https://xinguang.is-a.dev/ --push
+```
 ## 这个仓库里有什么
 
 - `index.html` + `src/` + `vendor/`：多文件版（开发用，需要静态服务器）
@@ -185,5 +205,6 @@ node tools/gh-domain.mjs --domain xinguang --email you@example.com             #
 | `gh-release` | `0` 成功 · `1` **线上站点验证失败** · `2` 没有令牌 · `3` 令牌无效 · `4` 建仓库失败 · `5` **推送失败**（含超时） · `6` **网络不通/超时** · `7` 开 Pages 失败 |
 | `gh-domain` | `0` 成功 · `2` 没有令牌 / 没给 `--email` 或邮箱格式不对 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `6`/`7` 建分支失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
 | `publish-polish` | `0` 成功 · `2` 没有令牌 / `--url` 缺失或不是 http(s) 地址 · `4` 仓库里没有 `origin`（先跑 `gh-release`） · `5` **推送失败** · `6` 重打包单文件版失败 · `7` 提交失败（仓库没配 `user.name` / `user.email`） |
+| `gh-custom-domain` | `0` 成功（含证书还没就绪时只警告） · `2` 没有令牌 / `--domain` 缺失或格式不对 · `3` 令牌无效 · `4` **Pages 还没开**（先去跑 `gh-release`） · `5` **域名还打不开/验证失败** · `6` 网络不通 / 读写 Pages 失败 |
 | `watch-and-release` | `0` 发布成功（含随后的元数据收尾） · `2` `--hours` / 环境变量不合法 · `3` 等不到令牌 · `124` 发布超过 20 分钟被掐断 · 其余 = `gh-release` 的退出码。收尾那一步失败**不**改变退出码，因为站点本身已经上线了 —— 它会把 `POLISH_FAILED` 和该敲的命令写进同一行 `DONE_LIVE` 日志 |
 **国内打不开 github.io？** 用方案里的 Cloudflare Pages 镜像，同一个仓库可以同时挂两份。
