@@ -1,0 +1,8 @@
+# 统一按文本处理，仓库里没有二进制需要特别标记的
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+
+# GitHub 语言统计：把内联了 three.js 的单文件版排除掉，避免算成 JS 主体
+心光.html linguist-generated=true -diff -merge
+vendor/three.module.js linguist-vendored=true linguist-generated=true

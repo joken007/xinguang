@@ -1,0 +1,405 @@
+/* ==========================================================================
+   心光 · 正念日出
+   层级：画布在底，暗场/暖洗/暗角在其上，文字最上。
+   暗场（curtain）承载"越暗越看不清"的氛围，随太阳升起逐帧淡出。
+   ========================================================================== */
+
+:root {
+  --ink: #f6efe4;
+  --ink-dim: rgba(246, 239, 228, 0.62);
+  --ink-faint: rgba(246, 239, 228, 0.34);
+  --night: #04060c;
+  --gold: #ffcb8a;
+  --stroke: rgba(255, 236, 210, 0.16);
+  --font-serif: "Songti SC", "STSong", "Source Han Serif SC", "Noto Serif SC", "SimSun", ui-serif, serif;
+  --font-sans: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #04060c;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+  outline: none;
+}
+
+/* ---------- 氛围层 ---------- */
+
+.curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 108%, rgba(8, 14, 28, 0.92) 0%, rgba(4, 6, 12, 0.96) 55%, #04060c 100%),
+    #04060c;
+  opacity: 0.97;
+  transition: opacity 120ms linear;
+  will-change: opacity;
+  mix-blend-mode: normal;
+}
+
+.sunwash {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(46% 34% at 50% 74%, rgba(255, 196, 128, 0.30) 0%, rgba(255, 168, 96, 0.12) 42%, rgba(255, 150, 90, 0) 72%);
+  mix-blend-mode: screen;
+  transition: opacity 400ms linear;
+  will-change: opacity;
+}
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    radial-gradient(130% 100% at 50% 46%, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.28) 78%, rgba(0, 0, 0, 0.52) 100%);
+  opacity: 0.9;
+}
+
+/* ---------- 顶栏 ---------- */
+
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: max(18px, env(safe-area-inset-top)) clamp(16px, 3.2vw, 40px) 0;
+  pointer-events: none;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--ink);
+  text-shadow: 0 1px 22px rgba(0, 0, 0, 0.55);
+  opacity: 0.9;
+}
+
+.brand-mark {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 14px rgba(255, 203, 138, 0.85), 0 0 34px rgba(255, 170, 90, 0.45);
+  align-self: center;
+  animation: breathe 5.6s var(--ease) infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.75; }
+  50% { transform: scale(1.35); opacity: 1; }
+}
+
+.brand-name {
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.5vw, 18px);
+  letter-spacing: 0.34em;
+  padding-left: 0.34em;
+}
+
+.brand-sub {
+  font-size: clamp(10px, 1vw, 12px);
+  letter-spacing: 0.22em;
+  color: var(--ink-faint);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.ghost {
+  appearance: none;
+  border: 1px solid transparent;
+  background: rgba(255, 240, 220, 0.04);
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 220ms var(--ease), background 220ms var(--ease), border-color 220ms var(--ease), transform 220ms var(--ease);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.ghost .ico { font-size: 12px; opacity: 0.9; }
+.ghost:hover { color: var(--ink); background: rgba(255, 240, 220, 0.09); border-color: var(--stroke); }
+.ghost:active { transform: scale(0.96); }
+.ghost[aria-pressed="true"] {
+  color: #2a1c0c;
+  background: rgba(255, 214, 160, 0.88);
+  border-color: rgba(255, 230, 200, 0.5);
+  box-shadow: 0 0 22px rgba(255, 190, 120, 0.28);
+}
+.ghost:focus-visible { outline: 2px solid rgba(255, 214, 160, 0.8); outline-offset: 2px; }
+
+/* ---------- 舞台：语录 ---------- */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 3vh, 34px);
+  padding: 12vh clamp(22px, 8vw, 140px) 16vh;
+  cursor: pointer;
+  outline: none;
+}
+
+.stage:focus-visible { outline: none; }
+
+.quote {
+  position: relative;
+  margin: 0;
+  max-width: min(22em, 92vw);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  transition: opacity 520ms var(--ease), transform 620ms var(--ease), filter 520ms var(--ease);
+  will-change: opacity, transform;
+}
+
+/* 天色亮起来之后语录会压在很亮的天空上，加一层极淡的椭圆压暗，
+ * 只托住文字本身，不破坏画面的通透感。 */
+.quote::before {
+  content: "";
+  position: absolute;
+  inset: -14% -18%;
+  z-index: -1;
+  background: radial-gradient(ellipse at 50% 46%,
+    rgba(8, 12, 22, 0.80) 0%,
+    rgba(8, 12, 22, 0.44) 34%,
+    rgba(8, 12, 22, 0.14) 60%,
+    rgba(8, 12, 22, 0) 84%);
+  opacity: var(--quote-scrim, 0.10);
+  pointer-events: none;
+}
+
+.quote-text {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(23px, 3.7vw, 44px);
+  font-weight: 400;
+  line-height: 1.72;
+  letter-spacing: 0.1em;
+  color: rgba(250, 244, 234, 0.94);
+  text-shadow:
+    0 0 2px rgba(0, 0, 0, 0.34),
+    0 1px 6px rgba(0, 0, 0, 0.30),
+    0 2px 18px rgba(0, 0, 0, 0.40),
+    0 4px 46px rgba(0, 0, 0, 0.42),
+    0 0 70px rgba(255, 216, 166, 0.10);
+  white-space: pre-line;
+}
+
+.quote-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink-dim);
+  font-size: clamp(11px, 1.05vw, 13px);
+  letter-spacing: 0.3em;
+}
+
+.quote-meta::before,
+.quote-meta::after {
+  content: "";
+  width: clamp(18px, 3vw, 36px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 232, 200, 0.42), transparent);
+}
+
+.quote-author {
+  padding-left: 0.3em;
+  white-space: nowrap;
+}
+
+.quote.is-out {
+  opacity: 0;
+  transform: translateY(12px) scale(0.985);
+  filter: blur(5px);
+}
+
+.hint {
+  position: absolute;
+  bottom: clamp(64px, 12vh, 132px);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: clamp(11px, 1.05vw, 13px);
+  letter-spacing: 0.36em;
+  color: var(--ink-faint);
+  text-align: center;
+  white-space: nowrap;
+  animation: hintPulse 4.4s var(--ease) infinite;
+  transition: opacity 700ms var(--ease);
+}
+
+.hint.is-hidden { opacity: 0; }
+
+@keyframes hintPulse {
+  0%, 100% { opacity: 0.42; }
+  50% { opacity: 0.86; }
+}
+
+/* ---------- 页脚进度 ---------- */
+
+.foot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  padding: 0 clamp(16px, 3.2vw, 40px) max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.progress {
+  height: 1px;
+  width: 100%;
+  background: rgba(255, 240, 220, 0.1);
+  overflow: hidden;
+}
+
+.progress i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(255, 203, 138, 0.35), rgba(255, 226, 180, 0.95));
+  box-shadow: 0 0 12px rgba(255, 196, 128, 0.6);
+  transition: width 620ms var(--ease);
+}
+
+.foot-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 10.5px;
+  letter-spacing: 0.28em;
+  color: var(--ink-faint);
+}
+
+.phase { flex: 1; text-align: center; }
+.fps { opacity: 0.55; font-variant-numeric: tabular-nums; }
+/* 调试用的帧率数字不进成品界面（真机 60fps，无信息量） */
+html:not([data-debug="1"]) .fps { display: none; }
+
+/* ---------- 无障碍 ---------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- 致命错误 ---------- */
+
+.fatal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: #04060c;
+  padding: 24px;
+}
+
+.fatal[hidden] { display: none; }
+
+.fatal-card {
+  max-width: 34em;
+  text-align: center;
+  color: var(--ink-dim);
+  line-height: 1.9;
+}
+
+.fatal-card h1 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(20px, 3vw, 28px);
+  letter-spacing: 0.24em;
+  color: var(--ink);
+  margin: 0 0 12px;
+}
+
+.fatal-card code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  color: var(--gold);
+}
+
+/* ---------- 窄屏 ---------- */
+
+@media (max-width: 640px) {
+  .brand-sub { display: none; }
+  .ghost .txt { display: none; }
+  .ghost { padding: 8px 10px; }
+  .stage { padding-bottom: 20vh; }
+  .quote-text { letter-spacing: 0.08em; line-height: 1.78; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark { animation: none; }
+  .hint { animation: none; opacity: 0.6; }
+  .quote { transition: opacity 200ms linear; }
+}

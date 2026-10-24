@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#04060c" />
+<title>心光 · 一念升起</title>
+<meta name="description" content="点点点，让太阳一点点升起来。森林、海、山川与一束正念的光。" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='36' r='14' fill='%23ffcf8a'/%3E%3Cpath d='M4 50h56' stroke='%232a3a52' stroke-width='4'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="./src/styles.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+  <canvas id="scene" aria-label="森林、海洋与山川的日出场景"></canvas>
+
+  <div id="curtain" class="curtain" aria-hidden="true"></div>
+  <div id="sunwash" class="sunwash" aria-hidden="true"></div>
+  <div id="vignette" class="vignette" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">心光</span>
+      <span class="brand-sub">一念升起，天地渐明</span>
+    </div>
+    <nav class="actions">
+      <button id="btn-auto" class="ghost" type="button" aria-pressed="false" title="自动升日 (A)">
+        <span class="ico">◐</span><span class="txt">自动</span>
+      </button>
+      <button id="btn-motion" class="ghost" type="button" aria-pressed="true" title="光影流动 (M)">
+        <span class="ico">≋</span><span class="txt">流动</span>
+      </button>
+      <button id="btn-sound" class="ghost" type="button" aria-pressed="false" title="环境声 (S)">
+        <span class="ico">◍</span><span class="txt">Sound</span>
+      </button>
+      <button id="btn-reset" class="ghost" type="button" title="从头再来 (R)">
+        <span class="ico">↺</span><span class="txt">重来</span>
+      </button>
+    </nav>
+  </header>
+
+  <main id="stage" class="stage" role="button" tabindex="0" aria-live="polite"
+        aria-label="点击让太阳升起">
+    <figure class="quote">
+      <blockquote id="quote-text" class="quote-text"></blockquote>
+      <figcaption class="quote-meta">
+        <span id="quote-author" class="quote-author"></span>
+      </figcaption>
+    </figure>
+    <p id="hint" class="hint">轻触画面 · 让太阳升起一帧</p>
+  </main>
+
+  <footer class="foot">
+    <div class="progress" aria-hidden="true"><i id="progress-fill"></i></div>
+    <div class="foot-meta">
+      <span id="count" class="count">0 / 60</span>
+      <span id="phase" class="phase">黎明之前</span>
+      <span id="fps" class="fps"></span>
+    </div>
+  </footer>
+
+  <div id="a11y-status" class="sr-only" role="status"></div>
+  <div id="fatal" class="fatal" hidden>
+    <div class="fatal-card">
+      <h1>这里没有光</h1>
+      <p id="fatal-reason">当前浏览器无法创建 WebGL 场景。</p>
+      <p class="fatal-tip">请用最新版 Chrome / Edge / Safari 打开，或通过 <code>node serve.mjs</code> 在本地启动后再访问。</p>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

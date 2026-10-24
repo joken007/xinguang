@@ -1,0 +1,12 @@
+{
+  "name": "xinguang",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "心光 · 一念升起，天地渐明 —— three.js 正念日出网页",
+  "scripts": {
+    "start": "node serve.mjs",
+    "start:py": "python -m http.server 5173"
+  },
+  "dependencies": {}
+}
