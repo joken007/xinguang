@@ -25,6 +25,10 @@ const REPO_DIR = _dirname(_dirname(_fileURLToPath(import.meta.url))); // tools/ 
 const API = process.env.GH_API || 'https://api.github.com';            // GH_API / GH_REMOTE_BASE / GH_LIVE_BASE are offline-rehearsal hooks
 const REMOTE_BASE = process.env.GH_REMOTE_BASE || 'https://github.com';
 const LIVE_BASE = process.env.GH_LIVE_BASE || '';
+// Every network leg is bounded. Without these a half-dead GitHub turns the release into a log that
+// never moves and never exits -- and by then the token is already sitting on disk.
+const API_TIMEOUT = Number(process.env.GH_API_TIMEOUT_MS || 30000);
+const GIT_TIMEOUT = Number(process.env.GIT_TIMEOUT_MS || 600000);
 mkdirSync(DL, { recursive: true });
 
 function arg(name, dflt) {
@@ -41,28 +45,43 @@ if (!token) {
   process.exit(2);
 }
 
+// status 0 means "the request never got an answer" (timeout / dropped socket), which callers must
+// report as a network failure rather than silently treating as an auth or repo error.
 async function api(method, path, body) {
-  const res = await fetch(API + path, {
-    method,
-    headers: {
-      Authorization: 'Bearer ' + token,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'xinguang-release',
-      'Content-Type': 'application/json'
-    },
-    body: body ? JSON.stringify(body) : undefined
-  });
-  const text = await res.text();
-  let json = null;
-  try { json = JSON.parse(text); } catch (e) { json = { raw: text.slice(0, 400) }; }
-  return { status: res.status, json };
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(API + path, {
+        method,
+        headers: {
+          Authorization: 'Bearer ' + token,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'xinguang-release',
+          'Content-Type': 'application/json'
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(API_TIMEOUT)
+      });
+      const text = await res.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch (e) { json = { raw: text.slice(0, 400) }; }
+      return { status: res.status, json };
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 2) await new Promise(function (r) { setTimeout(r, 2000 * (attempt + 1)); });
+    }
+  }
+  const why = lastErr && lastErr.cause && lastErr.cause.code ? lastErr.cause.code : String(lastErr && lastErr.message);
+  return { status: 0, json: { error: 'network_error', detail: why } };
 }
 
 function git(args, extraEnv) {
   return execFileSync(GIT, args, {
     cwd: REPO_DIR,
     encoding: 'utf8',
+    timeout: GIT_TIMEOUT,
+    killSignal: 'SIGKILL',
     // Never let git stop to ask a human for credentials: fail loudly instead of hanging a script.
     env: Object.assign({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }, process.env, extraEnv || {}),
     stdio: ['ignore', 'pipe', 'pipe']
@@ -70,6 +89,7 @@ function git(args, extraEnv) {
 }
 
 const me = await api('GET', '/user');
+if (me.status === 0) { console.log('NETWORK_FAILED /user ' + JSON.stringify(me.json).slice(0, 300)); process.exit(6); }
 if (me.status !== 200) { console.log('AUTH_FAILED status=' + me.status + ' ' + JSON.stringify(me.json).slice(0, 300)); process.exit(3); }
 const owner = me.json.login;
 console.log('AUTHENTICATED as ' + owner + ' (' + (me.json.name || '') + ')');
@@ -79,6 +99,7 @@ let created = await api('POST', '/user/repos', {
   name: repoName, private: isPrivate, description: desc,
   has_issues: true, has_wiki: false, has_projects: false, auto_init: false
 });
+if (created.status === 0) { console.log('NETWORK_FAILED /user/repos ' + JSON.stringify(created.json).slice(0, 300)); process.exit(6); }
 if (created.status === 201) console.log('REPO_CREATED ' + created.json.full_name);
 else if (created.status === 422) console.log('REPO_EXISTS (reusing)');
 else { console.log('REPO_ERROR status=' + created.status + ' ' + JSON.stringify(created.json).slice(0, 400)); process.exit(4); }
@@ -98,6 +119,11 @@ try {
   if (u.protocol === 'http:' || u.protocol === 'https:') credBase = u.protocol + '//' + u.host;
 } catch (e) {}
 writeFileSync(credFile, credBase.replace('://', '://x-access-token:' + token + '@') + '\n');
+// A killed process skips finally blocks, which would leave the token in cleartext on disk. Drop it on
+// the way out of an interrupt too.
+function dropCred() { try { unlinkSync(credFile); } catch (e) {} }
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, function () { dropCred(); process.exit(130); });
+process.on('exit', dropCred);
 try {
   const out = git([
     '-c', 'credential.helper=',                                  // drop any preconfigured helper (GCM etc.)
@@ -107,15 +133,22 @@ try {
     'push', '-u', 'origin', 'main'
   ]);
   console.log('PUSH ' + out.trim().split(/\r?\n/).slice(-1)[0]);
+} catch (e) {
+  // execFileSync throws on a non-zero exit; without this the script would die on a raw stack trace and
+  // leave the caller to guess whether the code reached the remote.
+  const why = String((e && e.stderr) || (e && e.message) || e).trim().split(/\r?\n/).filter(Boolean).slice(-3).join(' | ');
+  console.log('PUSH_FAILED ' + why.slice(0, 400));
+  process.exit(5);
 } finally {
-  try { unlinkSync(credFile); } catch (e) {}
+  dropCred();
 }
 
 const pagesRepo = '/' + owner + '/' + repoName;
 let pages = await api('POST', '/repos' + pagesRepo + '/pages', { source: { branch: 'main', path: '/' } });
 if (pages.status === 201) console.log('PAGES_ENABLED');
 else if (pages.status === 409) console.log('PAGES_ALREADY_ENABLED');
-else console.log('PAGES_SETUP status=' + pages.status + ' ' + JSON.stringify(pages.json).slice(0, 300));
+else if (pages.status === 0) { console.log('NETWORK_FAILED /pages ' + JSON.stringify(pages.json).slice(0, 300)); process.exit(6); }
+else { console.log('PAGES_SETUP status=' + pages.status + ' ' + JSON.stringify(pages.json).slice(0, 300)); process.exit(7); }
 
 const url = (LIVE_BASE || ('https://' + owner + '.github.io')) + '/' + repoName + '/';
 for (let i = 0; i < 20; i++) {
