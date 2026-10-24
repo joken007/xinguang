@@ -7,8 +7,8 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，45 个提交 / 55 个文件，工作区干净） |
-| 发布前体检 | ✅ `node tools/preflight.mjs` 一条命令列出「还缺什么」（令牌/仓库/Pages/DNS/工作区），只读不改 |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，46 个提交 / 55 个文件，工作区干净） |
+| 发布前体检 | ✅ `node tools/preflight.mjs` 一条命令列出「还缺什么」（令牌/仓库/Pages/DNS/工作区，加上站点能不能在 Pages 上跑、有没有令牌串被跟踪），只读不改 |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
 | 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当时全部提交 / 55 个文件真的推了起来，站点自检 200） |
 | 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
@@ -26,17 +26,26 @@ node tools/preflight.mjs            # 也可以 npm run preflight
 node tools/preflight.mjs --json     # 给脚本看的结构化输出
 ```
 
-它检查的是：`node` / `git` 能不能用、这个 checkout 是不是干净、仓库有没有 `user.name`/`user.email`（没配的话
-`publish-polish` 会在提交那步以退出码 `7` 失败）、单文件版 `心光.html` 是否比源码旧、有没有令牌、令牌是否被接受、
-仓库和 Pages 现在是什么状态、以及 `xinguang.is-a.dev` 的 DNS 解析到了没有。最后一行的 `SUMMARY` 会直接说出
-还差什么，比如现在这台机器上的结果就是：
+它检查四类事情：
+
+- **这台机器**：`node` / `git` 能不能用、这个 checkout 是不是干净、有没有配 `user.name`/`user.email`（没配的话 `publish-polish` 会在提交那步以退出码 `7` 失败）、单文件版 `心光.html` 是否比源码旧；
+- **要发布出去的站点**：Pages 会去取的那些文件在不在、`index.html` 里有没有写死本机地址（`127.0.0.1` / `file://`）或 `/styles.css` 这种根绝对路径（Pages 把仓库挂在子路径下，根绝对路径会 404）、importmap 里的 `three` 指向的文件在不在、`.nojekyll` 在不在、`site.webmanifest` 和它列出的图标在不在、跟踪文件的总量与最大单文件是否在 GitHub 的限制内；
+- **别把秘密和垃圾一起发出去**：跟踪的文件里有没有 `ghp_…` 这类令牌串、有没有误跟踪 `*.log` / 凭据 / 临时文件；
+- **外部状态**：有没有令牌、令牌是否被接受、仓库和 Pages 现在是什么状态、以及 `xinguang.is-a.dev` 的 DNS 解析到了没有。
+
+最后一行的 `SUMMARY` 会直接说出还差什么。这台机器现在的输出（只摘几行）：
 
 ```text
-FAIL TOKEN: not found -- run: node tools/gh-auth.mjs start, or leave a repo-scoped token at E:\shiguang-testbed\dl\gh-token.txt
+SITE: index.html uses relative paths only (5 src/href references)
+IMPORTMAP: "three" -> ./vendor/three.module.js (1.2 MiB)
+NOJEKYLL: .nojekyll present (Pages serves the files as they are)
+SIZE: 55 files, 11.9 MiB, largest 心光.html 1.5 MiB
+SECRETS: no token-looking strings in the 37 tracked text files
+FAIL TOKEN: not found -- ... gh-token.txt
 SUMMARY blocked on: TOKEN
 ```
 
-退出码：`0` 都齐了 · `2` 没令牌 · `3` 令牌被拒 · `4` 这个 checkout 本身不可用 · `6` GitHub 没应答。
+退出码：`0` 都齐了 · `2` 没令牌 · `3` 令牌被拒 · `4` 这个 checkout 本身不可用 · `5` 站点或仓库卫生有问题（写死的本机地址、根绝对路径、importmap 指向空、令牌串被跟踪、单文件超过 100 MiB 等） · `6` GitHub 没应答。
 
 ## 第一步：给我一个 GitHub 授权（三选一）
 
@@ -224,7 +233,7 @@ node tools/publish-polish.mjs --url https://xinguang.is-a.dev/ --push
 
 | 脚本 | 退出码 |
 | --- | --- |
-| `preflight` | `0` 都齐了 · `2` 没有令牌 · `3` 令牌被拒 · `4` checkout 不可用（不是仓库 / 没有 git） · `6` GitHub 没应答（含 5xx） |
+| `preflight` | `0` 都齐了 · `2` 没有令牌 · `3` 令牌被拒 · `4` checkout 不可用（不是仓库 / 没有 git / 缺 Pages 要取的文件） · `5` 站点或仓库卫生有问题（根绝对路径、importmap 指向空、令牌串被跟踪、单文件超 100 MiB） · `6` GitHub 没应答（含 5xx） |
 | `gh-release` | `0` 成功 · `1` **线上站点验证失败** · `2` 没有令牌 · `3` 令牌无效 · `4` 建仓库失败 · `5` **推送失败**（含超时） · `6` **网络不通/超时** · `7` 开 Pages 失败 |
 | `gh-domain` | `0` 成功 · `2` 没有令牌 / 没给 `--email` 或邮箱格式不对 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `6`/`7` 建分支失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
 | `publish-polish` | `0` 成功 · `2` 没有令牌 / `--url` 缺失或不是 http(s) 地址 · `4` 仓库里没有 `origin`（先跑 `gh-release`） · `5` **推送失败** · `6` 重打包单文件版失败 · `7` 提交失败（仓库没配 `user.name` / `user.email`） |

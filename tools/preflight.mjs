@@ -4,10 +4,14 @@
 //   node tools/preflight.mjs [--repo xinguang] [--domain xinguang.is-a.dev] [--no-domain] [--json]
 //
 // It never writes anything: no commits, no pushes, no files. Everything it reports is a fact about
-// this machine, this checkout, the token (when there is one) and the domain's DNS.
+// this machine, this checkout (including whether the files Pages would serve are actually usable),
+// the token (when there is one) and the domain's DNS.
 //
 // Exit codes: 0 everything needed is in place / 2 no token / 3 the token was rejected /
-//             4 the checkout itself is unusable (not a repo, git missing) / 6 GitHub did not answer.
+//             4 the checkout itself is unusable (not a repo, git missing, Pages needs files that
+//             are not here) / 5 the checkout would not serve correctly (root-absolute path, an
+//             importmap pointing at nothing, a token-shaped string in tracked files) / 6 GitHub
+//             did not answer.
 
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -111,6 +115,131 @@ if (!existsSync(bundle)) {
   } else {
     add('ok', 'BUNDLE', '心光.html ' + size + ' B, newer than src/');
   }
+}
+
+// ---- what the site itself has to look like once Pages serves it -------------------------------
+function fmtBytes(n) {
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MiB';
+  if (n >= 1024) return Math.round(n / 1024) + ' KiB';
+  return n + ' B';
+}
+function readTextRel(rel) {
+  try { return readFileSync(join(REPO_DIR, rel), 'utf8'); } catch (e) { return null; }
+}
+
+const trackedRaw = git(['ls-files', '-z']);
+const tracked = trackedRaw ? trackedRaw.split(String.fromCharCode(0)).filter(Boolean) : [];
+
+const MUST_TRACK = ['index.html', 'src/main.js', 'src/styles.css', 'vendor/three.module.js', '心光.html'];
+const missingMust = MUST_TRACK.filter(function (rel) { return !existsSync(join(REPO_DIR, rel)); });
+if (missingMust.length) {
+  add('bad', 'CHECKOUT', 'missing from this checkout: ' + missingMust.join(', '), 4);
+} else {
+  add('ok', 'CHECKOUT', 'the files Pages serves are all present (' + MUST_TRACK.join(', ') + ')');
+}
+
+const indexHtml = readTextRel('index.html');
+if (indexHtml === null) {
+  add('bad', 'SITE', 'index.html cannot be read', 5);
+} else {
+  const refs = [];
+  const re = /(?:src|href)\s*=\s*"([^"]*)"/g;
+  let m;
+  while ((m = re.exec(indexHtml)) !== null) refs.push(m[1]);
+  const localHost = refs.filter(function (r) { return /^(?:https?:\/\/)?(?:127\.0\.0\.1|localhost|file:\/\/|[A-Za-z]:\\)/i.test(r); });
+  const rootAbs = refs.filter(function (r) { return r.charAt(0) === '/'; });
+  if (rootAbs.length) {
+    add('bad', 'SITE', 'index.html refers to root-absolute paths (' + rootAbs.slice(0, 3).join(', ') + ') -- Pages serves this repository from a subpath, so those 404', 5);
+  } else if (localHost.length) {
+    add('bad', 'SITE', 'index.html points at this machine (' + localHost.slice(0, 3).join(', ') + ') -- that address does not exist for visitors', 5);
+  } else {
+    add('ok', 'SITE', 'index.html uses relative paths only (' + refs.length + ' src/href references)');
+  }
+
+  const im = indexHtml.match(/"three"\s*:\s*"([^"]+)"/);
+  if (!im) {
+    add('bad', 'IMPORTMAP', 'index.html has no importmap entry for "three" -- the scene would never load', 5);
+  } else {
+    const target = im[1].replace(/^\.\//, '');
+    const abs = join(REPO_DIR, target);
+    if (!existsSync(abs)) {
+      add('bad', 'IMPORTMAP', 'index.html imports three from ' + im[1] + ' but that file is not here', 5);
+    } else {
+      add('ok', 'IMPORTMAP', '"three" -> ' + im[1] + ' (' + fmtBytes(statSync(abs).size) + ')');
+    }
+  }
+
+  const nojekyll = existsSync(join(REPO_DIR, '.nojekyll'));
+  if (!nojekyll) {
+    add('warn', 'NOJEKYLL', '.nojekyll is missing -- nothing breaks today, but Jekyll would start processing files that begin with _');
+  } else {
+    add('ok', 'NOJEKYLL', '.nojekyll present (Pages serves the files as they are)');
+  }
+
+  const manifestText = readTextRel('site.webmanifest');
+  if (manifestText === null) {
+    add('warn', 'MANIFEST', 'site.webmanifest is missing -- installable-app metadata will be ignored');
+  } else {
+    try {
+      const man = JSON.parse(manifestText);
+      const icons = Array.isArray(man.icons) ? man.icons : [];
+      if (!man.name || !icons.length) {
+        add('warn', 'MANIFEST', 'site.webmanifest needs a name and at least one icon');
+      } else {
+        const gone = icons.filter(function (ic) { return !existsSync(join(REPO_DIR, String(ic.src || '').replace(/^\.\//, ''))); });
+        if (gone.length) {
+          add('warn', 'MANIFEST', 'site.webmanifest lists icons that are not here: ' + gone.map(function (ic) { return ic.src; }).join(', '));
+        } else {
+          add('ok', 'MANIFEST', man.name + ', ' + icons.length + ' icons, all present');
+        }
+      }
+    } catch (e) {
+      add('warn', 'MANIFEST', 'site.webmanifest is not valid JSON (' + (e && e.message) + ')');
+    }
+  }
+}
+
+// ---- repository hygiene: the things GitHub will refuse, or leak -------------------------------
+let totalBytes = 0;
+let largest = { rel: '', size: 0 };
+for (const rel of tracked) {
+  let st = null;
+  try { st = statSync(join(REPO_DIR, rel)); } catch (e) { continue; }
+  if (!st.isFile()) continue;
+  totalBytes += st.size;
+  if (st.size > largest.size) largest = { rel: rel, size: st.size };
+}
+if (largest.size > 100 * 1024 * 1024) {
+  add('bad', 'SIZE', largest.rel + ' is ' + fmtBytes(largest.size) + ' -- GitHub refuses files over 100 MiB', 5);
+} else if (largest.size > 50 * 1024 * 1024) {
+  add('warn', 'SIZE', largest.rel + ' is ' + fmtBytes(largest.size) + ' -- over 50 MiB, GitHub warns about it');
+} else if (totalBytes > 1024 * 1024 * 1024) {
+  add('bad', 'SIZE', fmtBytes(totalBytes) + ' tracked -- a GitHub Pages site is capped at 1 GiB', 5);
+} else {
+  add('ok', 'SIZE', tracked.length + ' files, ' + fmtBytes(totalBytes) + ', largest ' + largest.rel + ' ' + fmtBytes(largest.size));
+}
+
+const TOKEN_PATTERNS = [/gh[pousr]_[A-Za-z0-9]{20,}/, /github_pat_[A-Za-z0-9_]{20,}/, /Bearer\s+gh[pousr]_[A-Za-z0-9]{20,}/];
+const TEXT_EXT = /\.(?:js|mjs|css|html|md|json|yml|yaml|txt|webmanifest)$/;
+const leaks = [];
+for (const rel of tracked) {
+  if (!TEXT_EXT.test(rel)) continue;
+  const text = readTextRel(rel);
+  if (!text) continue;
+  if (TOKEN_PATTERNS.some(function (p) { return p.test(text); })) leaks.push(rel);
+}
+if (leaks.length) {
+  add('bad', 'SECRETS', 'token-looking strings in tracked files: ' + leaks.slice(0, 3).join(', ') + ' -- remove them before pushing', 5);
+} else {
+  add('ok', 'SECRETS', 'no token-looking strings in the ' + tracked.filter(function (r) { return TEXT_EXT.test(r); }).length + ' tracked text files');
+}
+
+const scratch = tracked.filter(function (rel) {
+  const name = rel.split('/').pop();
+  return /^\.gitcred/.test(name) || /-token\.txt$/.test(name) || /\.log$/.test(name) || /\.tmp$/.test(name);
+});
+if (scratch.length) {
+  add('warn', 'TRACKED', 'scratch files are tracked: ' + scratch.slice(0, 5).join(', ') + ' -- untrack them, they will be published');
 }
 
 // ---- the token --------------------------------------------------------------------------------
