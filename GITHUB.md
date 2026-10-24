@@ -65,14 +65,14 @@ git push -u origin main
 node tools/gh-release.mjs --repo xinguang
 ```
 
-它会依次：校验令牌身份 → 建仓库（已存在则复用）→ 配 `origin` 并把 `main` 推上去 → 调 API 开启 Pages → 轮询构建状态（最多 20×15s）→ **打开线上地址真验一遍**（`index.html` 200、页面标记齐全、`vendor/three.module.js` 与 `src/*.js` 全部 200）→ 打印 `LIVE_URL`。
+它会依次：校验令牌身份 → 建仓库（已存在则复用）→ 把 `main` 直接推到仓库地址 → **推成功之后**才配上 `origin`（并本地重建跟踪分支，不再回拉一次网络）→ 调 API 开启 Pages → 轮询构建状态（最多 20×15s）→ **打开线上地址真验一遍**（`index.html` 200、页面标记齐全、`vendor/three.module.js` 与 `src/*.js` 全部 200）→ 打印 `LIVE_URL`。
 
 > 推送用的令牌通过一个临时凭据文件交给 git，`finally` 里立即删除，`git config` 里不留任何痕迹。凭据文件的 `protocol://host` 是从实际 remote 推导的；push 前会先清空机器上预置的 credential helper —— Git for Windows 自带的 `credential-helper-selector` 会在无人值守时**挂住等人手输密码**，必须显式绕过。
 >
 > 跑完 `origin` 会留在仓库里（脚本故意不自动删，方便你接着手动 `git push`）。不想要就 `git remote remove origin`。
-> 但**推送失败时脚本会自己把 `origin` 摘掉**并打印 `REMOTE_REMOVED_AFTER_FAILURE`，免得你对着一个指向失败 push 的 remote 猜发生了什么。
+> **推送失败时仓库里根本不会有 `origin`**：脚本先直接往地址推、推成功了才 `git remote add origin`，所以不会留下一个指向失败 push 的 remote。中途被强杀也一样干净。
 >
-> 中断残留也考虑到了：临时凭据文件由 `finally` 删除，脚本还会在**启动时先扫一遍**上一次被强杀留下的 `.gitcred-tmp`（打印 `STALE_CRED_REMOVED`）。清扫只认「两分钟以上没动过」的文件，正在跑的 release 用的活凭据会打印 `CRED_FILE_IN_USE left alone` 并被放过 —— 免得你手滑起两个 watcher 时，后一个把前一个正在用的凭据删掉。注意 Windows 上 Node 的 `SIGTERM`/`SIGINT` 处理器对 `TerminateProcess` 强杀**根本不会运行**，所以真正的兜底是这次启动清扫，而不是信号处理。
+> 中断残留也考虑到了：临时凭据文件由 `finally` 删除，脚本还会在**启动时先扫一遍**上一次被强杀留下的凭据文件（打印 `STALE_CRED_REMOVED`）。凭据文件名里带着写它的进程号（`.gitcred-<pid>.tmp`），所以清扫看的是「写这个文件的进程还活着吗」：活着就打印 `CRED_FILE_IN_USE left alone (pid N is running)` 放过，死了才删。这样即使同一个目录里有两个 release 同时在跑，也不会互删对方正在用的凭据。旧版本留下的裸 `.gitcred-tmp` 没有进程号，才退回用年龄判断（默认两分钟，可用 `STALE_CRED_AGE_MS` 调；给它一个非数字会直接 `BAD_ENV` 退出 2，而不是悄悄变成「全删」）。注意 Windows 上 Node 的 `SIGTERM`/`SIGINT` 处理器对 `TerminateProcess` 强杀**根本不会运行**，所以真正的兜底是这次启动清扫，而不是信号处理。
 
 ### 需要你拍板的三个默认值
 

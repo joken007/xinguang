@@ -105,12 +105,13 @@ else if (created.status === 422) console.log('REPO_EXISTS (reusing)');
 else { console.log('REPO_ERROR status=' + created.status + ' ' + JSON.stringify(created.json).slice(0, 400)); process.exit(4); }
 
 const remoteUrl = REMOTE_BASE + '/' + owner + '/' + repoName + '.git';
-const existing = git(['remote']).split(/\r?\n/).filter(Boolean);
-if (existing.includes('origin')) git(['remote', 'set-url', 'origin', remoteUrl]);
-else git(['remote', 'add', 'origin', remoteUrl]);
 console.log('REMOTE ' + remoteUrl);
 
-const credFile = DL + '/.gitcred-tmp';
+// One credential file per process. Two releases running at once (a re-run started while the first is
+// still pushing) must never share a file: if they do, whichever finishes first deletes the credential
+// the other one is mid-push with. The pid in the name also lets a sweeper tell "leftover of a dead
+// process" from "live file of a running one" without guessing from timestamps.
+const credFile = DL + '/.gitcred-' + process.pid + '.tmp';
 // git matches a stored credential on protocol + host, so both have to be read off the real remote or
 // the entry is never found. (Reading them off remoteUrl also keeps the offline rehearsal honest.)
 let credBase = 'https://github.com';
@@ -125,19 +126,20 @@ writeFileSync(credFile, credBase.replace('://', '://x-access-token:' + token + '
 function dropCred() { try { unlinkSync(credFile); } catch (e) {} }
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, function () { dropCred(); process.exit(130); });
 process.on('exit', dropCred);
+let pushed = false;
 try {
   const out = git([
     '-c', 'credential.helper=',                                  // drop any preconfigured helper (GCM etc.)
     // forward slashes: git re-parses this value through shell rules, where backslashes are escapes
     '-c', 'credential.helper=store --file=' + credFile.replace(/\\/g, '/'),
     '-c', 'credential.interactive=false',
-    'push', '-u', 'origin', 'main'
+    // Push to the URL itself, not to a named remote: adding origin first would mean a push that fails
+    // (or a process killed mid-push) leaves the repo pointing at a release that never landed.
+    'push', remoteUrl, 'main'
   ]);
+  pushed = true;
   console.log('PUSH ' + out.trim().split(/\r?\n/).slice(-1)[0]);
 } catch (e) {
-  // Do not walk away leaving a half-finished remote behind: the caller cannot tell a clean repo from
-  // one whose remote points at a push that never landed.
-  try { git(['remote', 'remove', 'origin']); console.log('REMOTE_REMOVED_AFTER_FAILURE'); } catch (e2) {}
   // execFileSync throws on a non-zero exit; without this the script would die on a raw stack trace and
   // leave the caller to guess whether the code reached the remote.
   const why = String((e && e.stderr) || (e && e.message) || e).trim().split(/\r?\n/).filter(Boolean).slice(-3).join(' | ');
@@ -145,6 +147,26 @@ try {
   process.exit(5);
 } finally {
   dropCred();
+}
+
+// Only after the branch is really on the remote does the repo get a remote to point at.
+if (pushed) {
+  const existing = git(['remote']).split(/\r?\n/).filter(Boolean);
+  if (existing.includes('origin')) git(['remote', 'set-url', 'origin', remoteUrl]);
+  else git(['remote', 'add', 'origin', remoteUrl]);
+  console.log('REMOTE_ADDED origin -> ' + remoteUrl);
+  // Rebuild the tracking ref locally instead of fetching it back: we just pushed this very commit, so
+  // refs/remotes/origin/main is known, and a fetch here would be one more network dependency that can
+  // hang on a half-dead remote after the release has already landed.
+  try {
+    git(['update-ref', 'refs/remotes/origin/main', 'refs/heads/main']);
+    git(['config', 'branch.main.remote', 'origin']);
+    git(['config', 'branch.main.merge', 'refs/heads/main']);
+    console.log('UPSTREAM origin/main');
+  } catch (e) {
+    // Tracking is a convenience; not having it must not fail an otherwise good release.
+    console.log('UPSTREAM_SKIPPED ' + String((e && e.message) || e).split(/\r?\n/)[0].slice(0, 200));
+  }
 }
 
 const pagesRepo = '/' + owner + '/' + repoName;

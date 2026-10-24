@@ -4,7 +4,7 @@
 // pushed, Pages is switched on and the live URL is verified without anyone having to say go.
 //
 //   node tools/watch-and-release.mjs [--repo xinguang] [--hours 12]
-import { readFileSync, existsSync, appendFileSync, unlinkSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, appendFileSync, unlinkSync, statSync, readdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -16,7 +16,6 @@ const DL = process.env.XINGUANG_DL || (existsSync(LEGACY_DL) ? LEGACY_DL : join(
 const TOKEN_FILE = join(DL, 'gh-token.txt');
 const LOG = join(DL, 'watcher.log');
 const RELEASE = join(HERE, 'gh-release.mjs');
-const CRED_FILE = join(DL, '.gitcred-tmp');
 
 function arg(name, dflt) {
   const i = process.argv.indexOf('--' + name);
@@ -37,27 +36,51 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // runs that code -- and that file holds a live token in cleartext. Sweep up on the way in, so a crash
 // can only ever leave it until the next run rather than forever.
 //
-// Only sweep a file that is demonstrably old. A second watcher (or a re-run) started while the first
-// release is mid-push would otherwise delete the credential that push is actively using and break it.
-// A live push writes this file seconds ago; a crash leftover is minutes or hours old.
-const STALE_CRED_AGE_MS = Number(process.env.STALE_CRED_AGE_MS || 120000);
-function sweepStaleCred() {
-  try {
-    if (!existsSync(CRED_FILE)) return false;
-    const age = Date.now() - statSync(CRED_FILE).mtimeMs;
-    if (age < STALE_CRED_AGE_MS) { note('CRED_FILE_IN_USE left alone (' + Math.round(age / 1000) + 's old)'); return false; }
-    unlinkSync(CRED_FILE);
-    return true;
-  } catch (e) { return false; }
+// Ownership comes from the file name: gh-release writes .gitcred-<pid>.tmp, so a file whose pid is no
+// longer running is a leftover, while one whose pid is alive belongs to a release that may be mid-push.
+// Timestamps are the wrong test for that -- a busy machine can make a live file look minutes old, and
+// a second watcher deleting the credential under a running push breaks it for no reason.
+// Older versions wrote a bare .gitcred-tmp with no pid; those fall back to age.
+const rawStaleAge = process.env.STALE_CRED_AGE_MS;
+const STALE_CRED_AGE_MS = rawStaleAge === undefined ? 120000 : Number(rawStaleAge);
+// A typo here must not silently widen the sweep: Number('abc') is NaN, and every comparison against
+// NaN is false, which would quietly turn "leave young files alone" into "delete everything".
+if (!Number.isFinite(STALE_CRED_AGE_MS) || STALE_CRED_AGE_MS <= 0) {
+  console.error('BAD_ENV STALE_CRED_AGE_MS expects a positive number, got ' + JSON.stringify(rawStaleAge));
+  process.exit(2);
 }
-if (sweepStaleCred()) note('STALE_CRED_REMOVED ' + CRED_FILE);
-// Our own child's file, on the other hand, we can remove once its release is over -- but only if we
-// actually ran one. A watcher that merely waited, gave up and exited must not delete a credential that
-// some other run is holding, which is why this is gated on releaseStarted.
+// .gitcred-<pid>.tmp is what gh-release writes now; .gitcred-tmp is the name older versions used.
+const CRED_RE = /^\.gitcred(?:-(\d+))?[-.]tmp$/;
+function pidAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch (e) { return !!(e && e.code === 'EPERM'); }
+}
+function sweepStaleCred() {
+  let names = [];
+  try { names = readdirSync(DL).filter(n => CRED_RE.test(n)); } catch (e) { return 0; }
+  let swept = 0;
+  for (const name of names) {
+    const full = join(DL, name);
+    const m = CRED_RE.exec(name);
+    const ownerPid = m && m[1] ? Number(m[1]) : 0;
+    try {
+      if (ownerPid) {
+        if (pidAlive(ownerPid)) { note('CRED_FILE_IN_USE left alone (pid ' + ownerPid + ' is running) ' + name); continue; }
+        unlinkSync(full); note('STALE_CRED_REMOVED ' + full); swept++; continue;
+      }
+      const age = Date.now() - statSync(full).mtimeMs;
+      if (age < STALE_CRED_AGE_MS) { note('CRED_FILE_IN_USE left alone (' + Math.round(age / 1000) + 's old) ' + name); continue; }
+      unlinkSync(full); note('STALE_CRED_REMOVED ' + full); swept++;
+    } catch (e) {}
+  }
+  return swept;
+}
+sweepStaleCred();
+// Our own child's credential can go once its release is over -- but only if we actually ran one. A
+// watcher that merely waited, gave up and exited must not delete a credential another process holds.
 let releaseStarted = false;
 function dropCred() {
   if (!releaseStarted) return false;
-  try { if (existsSync(CRED_FILE)) { unlinkSync(CRED_FILE); return true; } } catch (e) {} return false;
+  return sweepStaleCred() > 0;
 }
 // Note: on Windows a handler is only reached for a real console Ctrl-C; a TerminateProcess kill runs
 // nothing, which is exactly why the startup sweep above exists.
