@@ -40,8 +40,8 @@
 有 GitHub 令牌后（见 [`GITHUB.md`](../../GITHUB.md) 第一步）：
 
 ```bash
-node tools/gh-domain.mjs --domain xinguang --email 你的邮箱 --dry-run   # 先看它会提交什么
-node tools/gh-domain.mjs --domain xinguang --email 你的邮箱             # 真的提交
+node tools/gh-domain.mjs --domain xinguang --dry-run   # 先看它会提交什么（含 PR 正文预览）
+node tools/gh-domain.mjs --domain xinguang             # 真的提交
 ```
 
 它会自动：检查 `xinguang` 是否被占用 → fork → 建分支 → 写入 `domains/xinguang.is-a.dev.json` → 开 PR，最后打印 PR 链接。

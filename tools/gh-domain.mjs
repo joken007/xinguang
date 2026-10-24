@@ -12,14 +12,16 @@ function arg(name, dflt) {
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
 }
 const domain = arg('domain', 'xinguang');
-const email = arg('email', '');
 const repoName = arg('repo', 'xinguang');
+const note = arg('note', '');
+const siteOverride = arg('site', '');
 const dryRun = process.argv.includes('--dry-run');
+// Note: the is-a.dev schema has no email field any more, so --email is accepted but unused.
 
 let token = process.env.GITHUB_TOKEN || '';
 if (!token && existsSync(DL + '/gh-token.txt')) token = readFileSync(DL + '/gh-token.txt', 'utf8').trim();
 if (!token) { console.log('NO_TOKEN'); process.exit(2); }
-if (!email) { console.log('NEED_EMAIL'); process.exit(2); }
+if (process.argv.includes('--email')) console.log('NOTE --email is no longer part of the is-a.dev schema; ignoring it');
 
 async function api(method, path, body) {
   const res = await fetch('https://api.github.com' + path, {
@@ -73,23 +75,33 @@ const put = await api('PUT', '/repos/' + owner + '/register/contents/' + filePat
 if (put.status === 201 || put.status === 200) console.log('FILE_WRITTEN ' + filePath);
 else { console.log('FILE_FAILED ' + put.status); process.exit(8); }
 
+const site = siteOverride || ('https://' + owner + '.github.io/' + repoName + '/');
+const description = note || 'Xinguang (心光) is an open-source three.js / WebGL mindfulness webpage. A calming quote appears at random; every touch lifts the sun one frame higher, and the scene slowly reveals forest, sea and mountains.';
 const body = [
   '## Domain',
+  '',
   full,
   '',
   '## Description',
-  'Xinguang (心光) is an open-source three.js / WebGL mindfulness webpage: a calming quote appears at random, and every touch lifts the sun by one frame until the whole scene is lit.',
   '',
-  'Live site: https://' + owner + '.github.io/' + repoName + '/',
+  description,
+  '',
+  'Live site: ' + site,
   'Source: https://github.com/' + owner + '/' + repoName,
   '',
   'Preview:',
-  '![preview](https://' + owner + '.github.io/' + repoName + '/preview/03-bright.png)',
   '',
-  '- [x] I have read the contribution guidelines',
-  '- [x] This is an open-source software project and the site is already live',
-  '- [x] I agree to the code of conduct'
+  '![preview](' + site + 'preview/03-bright.png)',
+  '',
+  '---',
+  '',
+  '- [x] The site is already live and this is an open-source, non-commercial project',
+  '- [x] I have read the contribution guidelines'
 ].join('\n');
+console.log('PR_BODY_PREVIEW ---');
+console.log(body);
+console.log('--- end');
 const pr = await api('POST', '/repos/' + UPSTREAM + '/pulls', { title: 'Add ' + full, head: owner + ':' + branch, base: defaultBranch, body: body });
 if (pr.status === 201) console.log('PR_OPENED ' + pr.json.html_url);
 else console.log('PR_FAILED ' + pr.status + ' ' + JSON.stringify(pr.json).slice(0, 400));
+console.log('REMINDER is-a.dev asks that the request be written by a human: open the PR and rewrite the description in your own words before a maintainer looks at it.');

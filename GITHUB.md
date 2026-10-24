@@ -7,10 +7,12 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、首次提交 | ✅ 已完成（`main` 分支，1 个提交 `cfee408`） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，6 个提交，工作区干净） |
+| 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
+| 推送与开启 Pages 的脚本 | ✅ 已写好并**用本地裸仓库实跑验证过** |
 | 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
-| 开启 GitHub Pages 线上站点 | ⏳ 推送后由我完成（或你点两下） |
-| 申请免费域名 `名字.is-a.dev` | ⏳ 等站点上线后提 PR（见 [`docs/free-domain.md`](free-domain.md)） |
+| 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开 |
+| 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（见 [`docs/free-domain.md`](docs/free-domain.md)） |
 
 ## 第一步：给我一个 GitHub 授权（三选一）
 
@@ -21,17 +23,19 @@
 你在浏览器里输一个 8 位码，密码不用给我，令牌由 GitHub 直接发给本机脚本。
 
 ```bash
-node tools/gh-auth.mjs start     # 打印一个形如 XXXX-XXXX 的用户码
+node tools/gh-auth.mjs start     # 生成一个形如 XXXX-XXXX 的用户码（15 分钟有效）
 ```
 
 然后**你自己**打开 https://github.com/login/device ，输入那串码、点授权（选 `repo` 权限）。
-授权后我在这边执行：
+
+码会过期，所以真正等待时用的是这个（码快过期会自动换一个新的并在终端响铃提醒，全程不需要人盯着）：
 
 ```bash
-node tools/gh-auth.mjs poll      # 拿到令牌后写到 E:/shiguang-testbed/dl/gh-token.txt
+node tools/gh-auth.mjs wait --minutes 720
 ```
 
-令牌只落在测试台目录（不在仓库里），用完我会从远端凭据里移除。
+它一旦拿到令牌就写到 `E:/shiguang-testbed/dl/gh-token.txt` 并打印 `TOKEN_OK login=...`，该文件**不在仓库里**。
+
 
 ### 方式 B：给我一个 Personal Access Token
 
@@ -52,6 +56,26 @@ git push -u origin main
 
 推完把仓库地址发我，我接着配 Pages 和域名。
 
+### 授权之后我这边跑什么
+
+一条命令（默认仓库名 `xinguang`、公开、Pages 从 `main` 根目录发布）：
+
+```bash
+node tools/gh-release.mjs --repo xinguang
+```
+
+它会依次：校验令牌身份 → 建仓库（已存在则复用）→ 配 `origin` 并把 `main` 推上去 → 调 API 开启 Pages → 轮询构建状态（最多 20×15s）→ **打开线上地址真验一遍**（`index.html` 200、页面标记齐全、`vendor/three.module.js` 与 `src/*.js` 全部 200）→ 打印 `LIVE_URL`。
+
+> 推送用的令牌通过一个临时凭据文件交给 git，`finally` 里立即删除，`git config` 里不留任何痕迹（这条路径已用本地裸仓库实测通过）。
+
+### 需要你拍板的三个默认值
+
+| 项 | 默认 | 说明 |
+| --- | --- | --- |
+| 仓库名 | `xinguang` | 地址就是 `https://<你的用户名>.github.io/xinguang/` |
+| 公开 / 私有 | **公开** | GitHub Pages 免费版要求公开仓库 |
+| 免费域名 | 申请 `xinguang.is-a.dev` | 名字想换就说；不想折腾就先只用 `github.io` 地址 |
+
 ## 第二步：开启 GitHub Pages（推送之后）
 
 仓库 → **Settings → Pages**：
@@ -70,7 +94,7 @@ git push -u origin main
 
 ## 第三步：免费域名（可选但推荐）
 
-详细调研见 [`docs/free-domain.md`](free-domain.md)，结论是两条腿走路：
+详细调研见 [`docs/free-domain.md`](docs/free-domain.md)，结论是两条腿走路：
 
 | 方案 | 拿到什么 | 需要你做什么 |
 | --- | --- | --- |
