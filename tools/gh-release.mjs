@@ -9,13 +9,21 @@
 //
 // Steps: create repo (skipped if it exists) -> add remote -> push main -> enable GitHub Pages -> wait for the build.
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
-const GIT = 'E:/shiguang-testbed/git/cmd/git.exe';
-const REPO_DIR = 'E:/心光';
-const DL = 'E:/shiguang-testbed/dl';
+import { existsSync as _exists } from 'node:fs';
+import { homedir as _homedir } from 'node:os';
+import { join as _join, dirname as _dirname } from 'node:path';
+import { fileURLToPath as _fileURLToPath } from 'node:url';
+
+const LEGACY_DL = 'E:/shiguang-testbed/dl';
+const HOME_DL = _join(_homedir(), '.xinguang-release');
+const DL = process.env.XINGUANG_DL || (_exists(LEGACY_DL) ? LEGACY_DL : HOME_DL);
+const GIT = process.env.GIT_BIN || (_exists('E:/shiguang-testbed/git/cmd/git.exe') ? 'E:/shiguang-testbed/git/cmd/git.exe' : 'git');
+const REPO_DIR = _dirname(_dirname(_fileURLToPath(import.meta.url))); // tools/ -> repo root
 const API = 'https://api.github.com';
+mkdirSync(DL, { recursive: true });
 
 function arg(name, dflt) {
   const i = process.argv.indexOf('--' + name);

@@ -9,14 +9,25 @@
 // The OAuth app client id below is the public GitHub CLI client id; no secret is needed for device flow.
 // Nothing here writes into the repository.
 
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const CLIENT_ID = '178c6fc778ccc68e1d6a';
 const SCOPE = 'repo read:user';
-const OUT_DIR = 'E:/shiguang-testbed/dl';
+import { existsSync as _exists } from 'node:fs';
+import { homedir as _homedir } from 'node:os';
+import { join as _join } from 'node:path';
+
+// Portable locations: set GIT_BIN / XINGUANG_DL to override. On this machine the portable git and the
+// release scratch dir already exist, so those are picked up automatically; elsewhere the defaults apply.
+const LEGACY_DL = 'E:/shiguang-testbed/dl';
+const HOME_DL = _join(_homedir(), '.xinguang-release');
+const DL = process.env.XINGUANG_DL || (_exists(LEGACY_DL) ? LEGACY_DL : HOME_DL);
+const GIT = process.env.GIT_BIN || (_exists('E:/shiguang-testbed/git/cmd/git.exe') ? 'E:/shiguang-testbed/git/cmd/git.exe' : 'git');
+const OUT_DIR = DL;
 const DEVICE_FILE = join(OUT_DIR, 'device.json');
 const TOKEN_FILE = join(OUT_DIR, 'gh-token.txt');
+mkdirSync(OUT_DIR, { recursive: true });
 
 function arg(name, dflt) {
   const i = process.argv.indexOf('--' + name);

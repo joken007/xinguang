@@ -4,7 +4,13 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 
-const DL = 'E:/shiguang-testbed/dl';
+import { existsSync as _exists } from 'node:fs';
+import { homedir as _homedir } from 'node:os';
+import { join as _join } from 'node:path';
+
+const LEGACY_DL = 'E:/shiguang-testbed/dl';
+const HOME_DL = _join(_homedir(), '.xinguang-release');
+const DL = process.env.XINGUANG_DL || (_exists(LEGACY_DL) ? LEGACY_DL : HOME_DL);
 const UPSTREAM = 'is-a-dev/register';
 
 function arg(name, dflt) {
@@ -42,6 +48,13 @@ const owner = me.json.login;
 const full = domain + '.is-a.dev';
 const filePath = 'domains/' + full + '.json';
 
+// Preflight: is the live site actually reachable? is-a.dev rejects requests for sites that are not up.
+// Best-effort only (a transient network hiccup must not block the dry run).
+try {
+  const probe = await fetch(siteOverride || ('https://' + owner + '.github.io/' + repoName + '/'), { method: 'GET', redirect: 'follow' });
+  console.log('SITE_PREFLIGHT ' + probe.status + ' ' + (siteOverride || ('https://' + owner + '.github.io/' + repoName + '/')));
+  if (probe.status !== 200) console.log('WARN the live site did not return 200; is-a.dev requires a live, non-empty site');
+} catch (e) { console.log('SITE_PREFLIGHT unreachable (' + (e && e.message) + ')'); }
 const taken = await api('GET', '/repos/' + UPSTREAM + '/contents/' + filePath);
 if (taken.status === 200) { console.log('DOMAIN_TAKEN ' + full); process.exit(4); }
 console.log('DOMAIN_AVAILABLE ' + full);
