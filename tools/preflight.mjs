@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // Read-only pre-release doctor: answers "what is still missing before this can be published?"
 //
-//   node tools/preflight.mjs [--repo xinguang] [--domain xinguang.is-a.dev] [--no-domain] [--json]
+//   node tools/preflight.mjs [--repo xinguang] [--domain xinguang.is-a.dev] [--no-domain] [--json] [--offline]
+//
+// --offline skips the token, the GitHub API and DNS, leaving only the checks that need nothing but
+// this checkout -- that is the form CI runs on every push.
 //
 // It never writes anything: no commits, no pushes, no files. Everything it reports is a fact about
 // this machine, this checkout (including whether the files Pages would serve are actually usable),
@@ -36,6 +39,7 @@ function arg(name, dflt) {
 const repoName = arg('repo', 'xinguang');
 const domain = process.argv.includes('--no-domain') ? '' : arg('domain', 'xinguang.is-a.dev');
 const jsonMode = process.argv.includes('--json');
+const offline = process.argv.includes('--offline');
 
 const checks = [];
 function add(level, name, detail, code) {
@@ -249,7 +253,9 @@ if (!token && existsSync(TOKEN_FILE)) {
   token = readFileSync(TOKEN_FILE, 'utf8').trim();
   tokenSource = TOKEN_FILE;
 }
-if (!token) {
+if (offline) {
+  add('ok', 'OFFLINE', 'no token, no network: only this checkout was checked');
+} else if (!token) {
   add('bad', 'TOKEN', 'not found -- run: node tools/gh-auth.mjs start, or leave a repo-scoped token at ' + TOKEN_FILE, 2);
 } else {
   add('ok', 'TOKEN', 'found in ' + tokenSource + ' (' + token.length + ' chars, value never printed)');
@@ -281,7 +287,7 @@ async function api(path) {
 }
 
 let owner = '';
-if (token) {
+if (token && !offline) {
   const me = await api('/user');
   if (me.status === 0) {
     add('bad', 'AUTH', 'GitHub did not answer: ' + (me.json.detail || 'network error'), 6);
@@ -328,7 +334,7 @@ if (owner) {
 }
 
 // ---- the domain ------------------------------------------------------------------------------
-if (domain) {
+if (domain && !offline) {
   try {
     const records = await resolveCname(domain);
     add('ok', 'DOMAIN', domain + ' CNAME ' + records.join(', '));

@@ -26,6 +26,13 @@ jobs:
           test -s 心光.html
           git diff --exit-code -- 心光.html
 
+      # The live check below only runs once Pages exists. This one runs on every push and catches the
+      # mistakes that would still break a correctly deployed site: a root-absolute path (Pages serves
+      # the repository from a subpath), an importmap pointing at a file that is not here, tokens that
+      # would be published with the site.
+      - name: Check that the site would actually serve
+        run: node tools/preflight.mjs --offline
+
       # The first push lands before Pages is switched on (enabling is a separate API call), so a live
       # check at that moment would fail for the wrong reason and leave the very first run red. Ask the
       # API whether a Pages site exists at all, and only then is "the site must answer" a fair demand.

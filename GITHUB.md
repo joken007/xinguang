@@ -7,7 +7,7 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，46 个提交 / 55 个文件，工作区干净） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，47 个提交 / 55 个文件，工作区干净） |
 | 发布前体检 | ✅ `node tools/preflight.mjs` 一条命令列出「还缺什么」（令牌/仓库/Pages/DNS/工作区，加上站点能不能在 Pages 上跑、有没有令牌串被跟踪），只读不改 |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
 | 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当时全部提交 / 55 个文件真的推了起来，站点自检 200） |
@@ -24,6 +24,7 @@
 ```bash
 node tools/preflight.mjs            # 也可以 npm run preflight
 node tools/preflight.mjs --json     # 给脚本看的结构化输出
+node tools/preflight.mjs --offline  # 只用这个 checkout，不碰令牌和网络（CI 每次推送就跑这个）
 ```
 
 它检查四类事情：
@@ -132,7 +133,7 @@ node tools/gh-release.mjs --repo xinguang
 - 社交分享用的是 `./preview/03-bright.png`（相对地址）。微信 / Twitter 的抓取器要绝对地址，所以 `watch-and-release` 发布成功后会自己跑一次 `tools/publish-polish.mjs`（见下一节）；只有想换地址或手工重跑时才需要自己敲命令
 - 想验证的话打开站点点几下，或用任意静态服务器本地跑 `node serve.mjs`
 
-`main` 每次推送都会跑一遍 `.github/workflows/check.yml`：语法检查 → 重新打包单文件版并要求与仓库里的一致 → 用 `tools/verify-live.mjs` 访问线上地址确认能打开。所以首页一旦坏掉，仓库的 Actions 会先红给你看。
+`main` 每次推送都会跑一遍 `.github/workflows/check.yml`：语法检查 → 重新打包单文件版并要求与仓库里的一致 → `node tools/preflight.mjs --offline` 检查「这个 checkout 真的能当站点跑吗」（写死的本机地址、根绝对路径、importmap 指向空、令牌串被跟踪）→ Pages 已开启时再用 `tools/verify-live.mjs` 访问线上地址确认能打开。所以首页一旦坏掉，仓库的 Actions 会先红给你看，而不是上线之后才发现。
 
 验线上之前会先问一次 Pages API：站点还没开启就跳过这一步并写明原因。因为第一次推送发生在开启 Pages 之前（开启是另一次 API 调用），那时若硬验线上，仓库的第一次 CI 就会为了一个不是站点本身的原因变红。
 
