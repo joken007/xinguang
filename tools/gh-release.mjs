@@ -63,7 +63,8 @@ function git(args, extraEnv) {
   return execFileSync(GIT, args, {
     cwd: REPO_DIR,
     encoding: 'utf8',
-    env: Object.assign({}, process.env, extraEnv || {}),
+    // Never let git stop to ask a human for credentials: fail loudly instead of hanging a script.
+    env: Object.assign({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }, process.env, extraEnv || {}),
     stdio: ['ignore', 'pipe', 'pipe']
   });
 }
@@ -89,10 +90,20 @@ else git(['remote', 'add', 'origin', remoteUrl]);
 console.log('REMOTE ' + remoteUrl);
 
 const credFile = DL + '/.gitcred-tmp';
-writeFileSync(credFile, 'https://x-access-token:' + token + '@github.com\n');
+// git matches a stored credential on protocol + host, so both have to be read off the real remote or
+// the entry is never found. (Reading them off remoteUrl also keeps the offline rehearsal honest.)
+let credBase = 'https://github.com';
+try {
+  const u = new URL(remoteUrl);
+  if (u.protocol === 'http:' || u.protocol === 'https:') credBase = u.protocol + '//' + u.host;
+} catch (e) {}
+writeFileSync(credFile, credBase.replace('://', '://x-access-token:' + token + '@') + '\n');
 try {
   const out = git([
-    '-c', 'credential.helper=store --file=' + credFile,
+    '-c', 'credential.helper=',                                  // drop any preconfigured helper (GCM etc.)
+    // forward slashes: git re-parses this value through shell rules, where backslashes are escapes
+    '-c', 'credential.helper=store --file=' + credFile.replace(/\\/g, '/'),
+    '-c', 'credential.interactive=false',
     'push', '-u', 'origin', 'main'
   ]);
   console.log('PUSH ' + out.trim().split(/\r?\n/).slice(-1)[0]);

@@ -46,7 +46,7 @@ export async function verifyLive(url, opts) {
   for (const m of MARKERS) {
     if (!page.body.includes(m)) failures.push('index.html missing marker: ' + m);
   }
-  notes.push('index.html bytes=' + page.body.length);
+  notes.push('index.html bytes=' + Buffer.byteLength(page.body, 'utf8'));
 
   const assets = [];
   let match;
@@ -58,7 +58,7 @@ export async function verifyLive(url, opts) {
   for (const rel of assets) {
     const u = new URL(rel.replace(/^\.\//, ''), base).href;
     const r = await get(u, timeout);
-    notes.push('GET ' + rel + ' -> ' + (r.status || r.error) + ' (' + r.body.length + ' B)');
+    notes.push('GET ' + rel + ' -> ' + (r.status || r.error) + ' (' + Buffer.byteLength(r.body, 'utf8') + ' B)');
     if (r.status !== 200) failures.push(rel + ' status ' + (r.status || r.error));
     else if (rel.endsWith('three.module.js') && !/three\.js|WebGLRenderer/i.test(r.body)) failures.push(rel + ' does not look like three.js');
   }
