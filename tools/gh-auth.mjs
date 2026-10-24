@@ -108,56 +108,77 @@ if (mode === 'start') {
   process.exit(3);
 } else if (mode === 'wait') {
   const minutes = Number(arg('minutes', '720'));
-  const deadline = Date.now() + minutes * 60000;
+  const hardDeadline = Date.now() + minutes * 60000;
   let lastBeat = 0;
   let netFails = 0;
-  let d = loadCode();
-  if (d) {
-    console.log('[' + stamp() + '] REUSING existing code');
-    console.log('  USER_CODE=' + d.user_code + '   OPEN: ' + d.verification_uri);
-  } else {
-    d = await newCode('no valid code on disk');
-  }
-  let interval = Math.max(10000, (d.interval || 5) * 1000); // gentle: half the request volume of the spec minimum
-  let codeAge = (Date.now() - (d._started_at || Date.now())) / 1000;
-  while (Date.now() < deadline) {
-    await sleep(interval);
-    codeAge += interval / 1000;
-    if (codeAge > (d.expires_in || 900) - 30) {
-      try {
-        d = await newCode('previous code expired');
-        interval = (d.interval || 5) * 1000;
-        codeAge = 0;
-      } catch (e) {
-        console.log('[' + stamp() + '] CODE_REFRESH_RETRY ' + (e && e.message ? e.message : e));
-        beep();
-        await sleep(30000);
+
+  async function waitLoop() {
+    let d = loadCode();
+    if (d) {
+      console.log('[' + stamp() + '] REUSING existing code');
+      console.log('  USER_CODE=' + d.user_code + '   OPEN: ' + d.verification_uri);
+    } else {
+      d = await newCode('no valid code on disk');
+    }
+    let interval = Math.max(10000, (d.interval || 5) * 1000); // gentle: half the request volume of the spec minimum
+    while (Date.now() < hardDeadline) {
+      await sleep(interval);
+      // Wall-clock age, never an accumulator: sleeps plus HTTP round trips drift by minutes over a night.
+      const codeAge = (Date.now() - (d._started_at || Date.now())) / 1000;
+      if (codeAge > (d.expires_in || 900) - 60) {
+        try {
+          d = await newCode('previous code expired');
+          interval = Math.max(10000, (d.interval || 5) * 1000);
+        } catch (e) {
+          console.log('[' + stamp() + '] CODE_REFRESH_RETRY ' + (e && e.message ? e.message : e));
+          beep();
+          await sleep(30000);
+        }
+        continue;
       }
-      continue;
+      let r;
+      try {
+        r = await tryToken(d.device_code);
+      } catch (e) {
+        r = { pending: true, error: 'network_error', raw: String(e && e.message ? e.message : e) };
+      }
+      if (r.done) process.exit(0);
+      // The server can retire a code before our own clock says so, and a code can be rejected outright:
+      // either way the one on disk is useless, so ask for a fresh one and stay alive.
+      if (r.error === 'expired_token' || r.error === 'incorrect_device_code') {
+        console.log('[' + stamp() + '] CODE_REJECTED ' + r.error + ' (requesting a new one)');
+        d = await newCode('server rejected the code: ' + r.error);
+        interval = Math.max(10000, (d.interval || 5) * 1000);
+        continue;
+      }
+      if (!r.pending) {
+        console.log('[' + stamp() + '] POLL_STOP ' + JSON.stringify(r.raw));
+        process.exit(2);
+      }
+      if (r.error === 'network_error') {
+        netFails++;
+        console.log('[' + stamp() + '] NETWORK_RETRY (' + netFails + ') ' + JSON.stringify(r.raw).slice(0, 160));
+        await sleep(Math.min(60000, 5000 * netFails));
+        continue;
+      } else { netFails = 0; }
+      if (r.error === 'slow_down') interval += 5000;
+      if (Date.now() - lastBeat > 60000) {
+        lastBeat = Date.now();
+        const left = Math.round(((d.expires_in || 900) - (Date.now() - (d._started_at || Date.now())) / 1000) / 60);
+        console.log('[' + stamp() + '] WAITING code=' + d.user_code + ' code_valid_for=' + left + 'min');
+        beep();
+      }
     }
-    let r;
+  }
+
+  // Supervisor: an unexpected throw must never end the wait, it just restarts the loop.
+  while (Date.now() < hardDeadline) {
     try {
-      r = await tryToken(d.device_code);
+      await waitLoop();
     } catch (e) {
-      r = { pending: true, error: 'network_error', raw: String(e && e.message ? e.message : e) };
-    }
-    if (r.done) process.exit(0);
-    if (!r.pending) {
-      console.log('[' + stamp() + '] POLL_STOP ' + JSON.stringify(r.raw));
-      process.exit(2);
-    }
-    if (r.error === 'network_error') {
-      netFails++;
-      console.log('[' + stamp() + '] NETWORK_RETRY (' + netFails + ') ' + JSON.stringify(r.raw).slice(0, 160));
-      await sleep(Math.min(60000, 5000 * netFails));
-      continue;
-    } else { netFails = 0; }
-    if (r.error === 'slow_down') interval += 5000;
-    if (Date.now() - lastBeat > 60000) {
-      lastBeat = Date.now();
-      const left = Math.round(((d.expires_in || 900) - codeAge) / 60);
-      console.log('[' + stamp() + '] WAITING code=' + d.user_code + ' code_valid_for=' + left + 'min');
+      console.log('[' + stamp() + '] SUPERVISOR_RESTART ' + (e && e.message ? e.message : e));
       beep();
+      await sleep(20000);
     }
   }
   console.log('[' + stamp() + '] WAIT_TIMEOUT after ' + minutes + ' min');
