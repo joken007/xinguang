@@ -3,7 +3,7 @@
 //
 //   node tools/verify-live.mjs <url> [--retries 6] [--delay 5000] [--timeout 20000]
 //
-// Checks: index.html returns 200 -> contains the page markers -> the importmap target
+// Checks: index.html returns 200 -> contains the page markers -> the importmap entry for "three"
 // (./vendor/three.module.js) returns 200 and looks like three.js -> the quoted ES modules
 // referenced by index.html all return 200, with a javascript/css content type. The single-file
 // build (心光.html) is reported as a warning if it is missing. Exit code 0 = OK, 1 = FAIL.
@@ -49,6 +49,21 @@ export async function verifyLive(url, opts) {
   }
   notes.push('index.html bytes=' + Buffer.byteLength(page.body, 'utf8'));
 
+  // The three.js build is loaded through the importmap, not through a src= attribute, so the asset
+  // loop below never sees it. A broken vendor path is worth catching here: in the browser its only
+  // symptom is a canvas that stays black.
+  const im = page.body.match(/"three"\s*:\s*"([^"]+)"/);
+  notes.push('importmap three -> ' + (im ? im[1] : '(none)'));
+  if (!im) failures.push('index.html has no importmap entry for "three"');
+  else {
+    const rel = im[1].replace(/^\.\//, '');
+    const tr = await get(new URL(rel, base).href, timeout);
+    notes.push('GET ' + im[1] + ' -> ' + (tr.status || tr.error) + ' (' + Buffer.byteLength(tr.body, 'utf8') + ' B)');
+    if (tr.status !== 200) failures.push(im[1] + ' status ' + (tr.status || tr.error));
+    else if (!/three\.js|WebGLRenderer/i.test(tr.body)) failures.push(im[1] + ' does not look like three.js');
+    else if (!/javascript|ecmascript/i.test(tr.ctype)) failures.push(im[1] + ' is served as ' + (tr.ctype || 'no content-type') + ' (ES modules need a javascript type)');
+  }
+
   const assets = [];
   let match;
   MODULE_RE.lastIndex = 0;
@@ -65,7 +80,7 @@ export async function verifyLive(url, opts) {
     // only symptom is an empty canvas, so check the header while we are here.
     else if (rel.endsWith('.js') && !/javascript|ecmascript/i.test(r.ctype)) failures.push(rel + ' is served as ' + (r.ctype || 'no content-type') + ' (ES modules need a javascript type)');
     else if (rel.endsWith('.css') && !/text\/css/i.test(r.ctype)) failures.push(rel + ' is served as ' + (r.ctype || 'no content-type'));
-    else if (rel.endsWith('three.module.js') && !/three\.js|WebGLRenderer/i.test(r.body)) failures.push(rel + ' does not look like three.js');
+
   }
 
   // The single-file build is a shipped artifact (open it offline from the repo), not the entry point,
