@@ -10,7 +10,8 @@
     "auth": "node tools/gh-auth.mjs wait",
     "release": "node tools/gh-release.mjs",
     "domain": "node tools/gh-domain.mjs --domain xinguang",
-    "verify": "node tools/verify-live.mjs"
+    "verify": "node tools/verify-live.mjs",
+    "watch": "node tools/watch-and-release.mjs"
   },
   "dependencies": {}
 }
