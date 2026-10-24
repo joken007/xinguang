@@ -126,8 +126,13 @@ for (let i = 0; i < 6; i++) {
   await new Promise(function (r) { setTimeout(r, 8000); });
 }
 for (const n of v.notes) console.log('  ' + n);
-console.log('LIVE_VERIFY ' + (v.ok ? 'OK' : 'FAILED'));
+const result = v.ok ? 'OK' : 'FAILED';
+console.log('LIVE_VERIFY ' + result);
 for (const f of v.failures) console.log('  ! ' + f);
+if (!v.ok) {
+  console.log('ERROR: deployed site verification failed. Exiting with code 1.');
+  process.exit(1);
+}
 
 const head = await api('GET', '/repos/' + owner + '/' + repoName + '/commits/main');
 console.log('LIVE_URL ' + url);
