@@ -1,126 +1,148 @@
-# 心光 · 一念升起，天地渐明
+# Xinguang - one thought rises, and the sky brightens
 
-一个用 three.js / WebGL 写的正念小站：屏幕上随机浮现一句正念语录，背景是森林、海湾与远山。
-打开时先是一屏几乎全黑的打字机独白，静下来之后轻触画面——**每轻触一次，太阳就升起一帧，天色随之亮一分**，
-六十帧之后天光大亮，你才看清眼前有什么。而太阳不会停在顶点，它会一直、慢慢地往上走。
+A small mindfulness page built with three.js / WebGL. A calming quote fades in at random;
+behind it are a forest, a bay and distant mountains.
+When you open it, there is first a nearly black screen with a typewriter monologue. Once you are still,
+a single touch is all it takes - **every touch lifts the sun by one frame, and the sky brightens a little**.
+After sixty frames it is full daylight, and only then do you see what is in front of you.
+The sun does not stop at the top either; it keeps climbing, very slowly, forever.
 
-## 预览
+[中文说明 / Chinese README](README.zh-CN.md)
 
-| 首屏 | 黎明之前 → 天际微明 | 东方既白 | 天光大亮 | 天亮之后 |
+## Preview
+
+| Intro | Before dawn -> first light | Eastern sky pale | Full daylight | After dawn |
 | --- | --- | --- | --- | --- |
 | ![intro](preview/00-intro.png) | ![dawn](preview/01-dawn.png) | ![morning](preview/02-morning.png) | ![bright](preview/03-bright.png) | ![daylight](preview/04-daylight.png) |
 
-## 运行
+## Live demo
 
-零依赖、无需构建，用任意静态服务器打开即可（ES module 不能用 `file://` 直接打开）：
+Once GitHub Pages is enabled this page is served at `https://<user>.github.io/xinguang/`.
+Everything is static - no build step, no backend, no analytics.
+
+## Running it
+
+Zero dependencies, no build step. Serve the folder with any static server
+(ES modules cannot be opened over `file://`):
 
 ```bash
-node serve.mjs          # → http://127.0.0.1:5173
-# 或者
+node serve.mjs          # -> http://127.0.0.1:5173
+# or
 python -m http.server 5173
 ```
 
-### 想直接双击打开？
+### Want to just double-click it?
 
-另存了一个**单文件版**：`心光.html`（约 1.5 MB，three.js 与全部代码都内联在同一个文件里）。
-双击它、或拖进浏览器即可运行，不依赖任何服务器、不联网。
+There is also a **single-file build**: `心光.html` (about 1.5 MB, three.js and all the code inlined).
+Double-click it or drag it into a browser - no server, no network.
 
 ```bash
-node tools/build-single.mjs   # 源码改动后重新打包，产出 E:\心光\心光.html
+node tools/build-single.mjs   # rebuild after changing src/, writes 心光.html
 ```
 
-three.js（r169）已放在 `vendor/three.module.js`，不需要 npm install。
+three.js (r169) ships in `vendor/three.module.js`, so there is no `npm install`.
 
-## 操作
+## Controls
 
-| 操作 | 效果 |
+| Action | Effect |
 | --- | --- |
-| 首屏任意轻触 / 按键 | 补全打字（第一次）、淡出进入画面（第二次）；进入的那一下不会升帧 |
-| 轻触 / 点击画面 | 太阳升起一帧；满六十帧之后继续一帧一帧往上，没有上限 |
-| `空格` / `→` / `回车` | 同上（长按不连发，保持"一帧一帧"的节奏） |
-| `A` 自动 | 自动逐帧升日（首屏期间暂停；推进到 90 帧就自动停手，把画面交还给你） |
-| `M` 流动 | 开关水波与光影的持续流动 |
-| `S` 声音 | 开关音乐（实时合成的四小节循环 + 环境床，无任何音频文件） |
-| `R` 重来 | 回到黎明之前，换一条语录 |
+| Touch / any key on the intro | Complete the typing (first), fade out into the scene (second). The entering touch does **not** lift the sun |
+| Touch / click the scene | Lift the sun by one frame. Past sixty frames it keeps going, one frame at a time, with no ceiling |
+| `Space` / `Right` / `Enter` | Same as above (no key-repeat, to keep the one-frame-at-a-time rhythm) |
+| `A` Auto | Advance automatically (paused during the intro; it stops itself at 90 frames and hands the scene back to you) |
+| `M` Motion | Toggle the continuous water and light motion |
+| `S` Sound | Toggle the music (a four-bar loop synthesized live, plus an ambient bed - no audio files) |
+| `R` Restart | Back to before dawn, with a fresh quote |
 
-自动模式有上限（90 帧）：它帮你把画面点亮、让你看清这个世界，但**最后一程要你自己点**——
-到 90 帧它会把「自动」按钮熄掉；此后你随手点一下任何地方，自动模式就重新可用。
+Auto mode is capped at 90 frames: it helps you light the scene and see this world, but **the last stretch is yours**.
+At 90 frames it switches the Auto button off; after that, any touch makes Auto available again.
 
-语录共 **436 条**，抽取顺序做了**跨会话去重**（记录在 localStorage）：关掉页面、隔天再来，也不会看到重复的句子；
-把 436 条全部看过一遍之后，记录自动清零、重新洗牌，新一轮的第一条还会专门避开上一轮的末条。
-太阳升到不同高度时，页脚的相位文字会跟着变
-（黎明之前 / 天际微明 / 东方既白 / 晨光初照 / 旭日东升 / 天光大亮）。
+There are **436 quotes**, drawn with **cross-session de-duplication** (tracked in `localStorage`) -
+close the page and come back tomorrow and you will not see a repeat.
+Once all 436 have been seen the record resets and reshuffles, and the first quote of the new round
+deliberately avoids the last quote of the previous round.
+As the sun climbs, the phase label in the footer follows
+(before dawn / first light / eastern sky pale / morning light / sunrise / full daylight).
 
-## 目录
+## Layout
 
 ```
-心光.html               单文件版（three.js + 全部代码内联，双击即开）
-preview/                首页展示用的五张图（首屏 / 黎明 / 既白 / 大亮 / 天亮之后）
-screenshots/            六个相位各一张实拍（1280×720，由无头浏览器出图）
-index.html              页面骨架（画布 + 语录 + 页脚进度）
-serve.mjs               零依赖本地静态服务器
-tools/build-single.mjs  把上面的多文件版打包成 心光.html
+心光.html               single-file build (three.js + all code inlined, double-click to run)
+preview/                five images used above
+screenshots/            six phases captured at 1280x720 by a headless browser
+index.html              page shell (canvas + quote + footer progress)
+serve.mjs               zero-dependency local static server
+tools/build-single.mjs  bundles the multi-file version into 心光.html
 vendor/three.module.js  three.js r169
 src/
-  main.js               场景装配、逐帧升日状态机、输入与渲染循环
-  config.js             镜头、太阳轨迹（两段 + 软上限）、白天曲线、帧数与各阶段数值曲线
-  quotes.js             语录库（436 条）、相位表、跨会话去重抽取器（localStorage）
-  styles.css            排版与氛围层（暗场窗帘 / 暖洗 / 暗角）
-  ui/intro.js           首屏：黑底 + 打字机独白，关掉之前吞掉全部输入
-  ui/hud.js             DOM 层：语录切换、进度、相位、氛围、无障碍播报
-  audio/music.js        音乐：WebAudio 实时合成的 Cmaj7–Am7–Fmaj7–G6 循环
-  world/sky.js          天空穹顶（渐变 + 太阳方位暖带 + 日核与日晕）
-  world/sea.js          海面（菲涅尔、波峰碎光、太阳光路、雾）
-  world/terrain.js      地形（极坐标分带网格 + 山丘 + 远山 + 3200 棵针叶树 + 岩块）
-  post/composite.js     自写 HDR 后期：亮部提取 → 高斯 → 色调映射 → 暗角/颗粒 → sRGB
-  util/noise.js         值噪声 / fBm / 可复现随机
-  util/resources.js     共享材质与纹理
+  main.js               scene assembly, frame-by-frame state machine, input, render loop
+  config.js             camera, sun path (two segments + soft ceiling), day curve, frame count
+  quotes.js             436 quotes, phase table, cross-session de-duplicating drawer
+  styles.css            typography and atmosphere layers (curtain / warm wash / vignette)
+  ui/intro.js           intro: black screen + typewriter monologue, swallows all input until closed
+  ui/hud.js             DOM layer: quote transitions, progress, phase, atmosphere, a11y announcements
+  audio/music.js        music: a Cmaj7-Am7-Fmaj7-G6 loop synthesized in WebAudio
+  world/sky.js          sky dome (gradient + sun-azimuth warm band + disc and halo)
+  world/sea.js          sea (Fresnel, glitter, sun glitter path, fog)
+  world/terrain.js      terrain (polar banded grid + hills + far mountains + 3200 conifers + rocks)
+  post/composite.js     hand-written HDR post: bright pass -> gaussian -> tonemap -> vignette/grain -> sRGB
+  util/noise.js         value noise / fBm / reproducible random
+  util/resources.js     shared materials and textures
 ```
 
-## 几个实现要点
+## Implementation notes
 
-- **不引入后期处理库**：`src/post/composite.js` 自己搭了一条 HDR 链路
-  （HalfFloat 目标 → 1/4 分辨率亮部提取 → 横纵两趟 9 tap 高斯 → Khronos PBR Neutral 色调映射 → 手动 sRGB 编码）。
-  曝光、泛光、暗角都随升日进度联动，所以"变亮"不只是加一层白幕。
-- **一帧一帧，而且没有终点**：进度是整数帧，太阳高度、天空色、海面色、雾、光照强度都用同一条曲线求值；
-  渲染层再对取值做平滑追赶，所以点得快时太阳会"追"上来，但读数永远是你点到的帧。
-  太阳高度分两段：前 60 帧从 -8.9° 升到 5.7°（越接近顶点越慢），之后用一条指数尾巴
-  `MAX - (MAX-END)*exp(-(p-1)/2)` 继续往上，再过一道**平滑软上限**——这样它单调、有界、处处连续：
-  有界单调函数必有极限，所以"永远在升"数学上只能取极限，代码让这个极限落在
-  `CEIL - BAND*ln2 ≈ 14.6°`，距画面上缘（+17.6°）还留 2.96°，太阳圆盘（角半径约 0.97°）与整圈日晕都不会被切掉。
-- **天亮之后，世界还在动（不会在第 60 帧冻住）**：第二阶段的进度由 `dayAmountAt(p)` 给出
-  （`1 - exp(-(p-1)/2.5)`），它单独驱动天色、云、星空、水面、地形自发光、雾浓度、后期曝光与泛光。
-  于是点过 60 帧之后，天顶会继续往正午的深蓝走、云会褪尽、水面更透更冷、雾继续变薄、曝光再抬一点——
-  这些变化在截图上是可测量的：v=1 → v=6（360 帧）时天空平均色从 (99,119,139) 走到 (116,137,160)、
-  全图平均亮度从 88 升到 100 上下，而不是"只有太阳在滑"。
-- **地形的分带极坐标网格**：0~30m 环距 1.2m、30~110m 2.4m、110~210m 4.5m、210~600m 10m，
-  远处再补低密度带——镜头附近顶点密、地平线附近省，23.9 万三角形 / 3 个 draw call。
-- **颜色一致性**：自定义着色器自己写颜色空间编码，与 three 的标准材质对齐；验收一律看最终后期输出，
-  不看中间缓冲（中间缓冲少一次 sRGB 编码，会亮 2.4 倍，容易误判）。
-- **太阳与水面反光对齐**：光路中线不再用"镜面横向偏移比"（那个写法会让亮带永远贴在画面正中），
-  而是把水面点相对相机的**方位角**与太阳方位角相减得到残差（弧度制），
-  于是任意距离上 e=0 的中线都精确落在太阳的屏幕横坐标上；宽度也按弧度重标定（近 0.07 rad → 远 0.13 rad）。
-- **日晕不会被画面上缘切掉**：日晕半径不是固定倍数，而是每帧取
-  `min(自然角半径, 太阳中心到画面上缘的角余量 × 0.92)`；
-  太阳爬到软上限附近时晕会自然收成围着太阳的一圈紧光（同时补一点亮度），而不是被削平成一条硬边。
-- **音乐是实时合成的**，没有任何音频文件：60 BPM、4/4，四小节循环 Cmaj7 → Am7 → Fmaj7 → G6
-  （每两轮换一套进行，共四套轮转，两分多钟才回到最初），分 pad / bass / 旋律 / 高音铃 / 环境床五层；
-  混响用程序生成的 3 秒指数衰减 IR，母带过一道 lowpass + 软压缩。
-  音频图在首次轻触时才创建（浏览器自动播放策略），音量与低通截止都随升日进度慢慢变亮，
-  离开页面时淡出，避免混响被硬切断。
-- **首屏是第一人称的独白**：几乎是全黑的底，逐字打字，标点处停顿更久；
-  打字中轻触 = 补全，再轻触 = 淡出（900ms）后才真正开始。它的监听注册在 window 捕获阶段，
-  所以首屏期间点画面不会"提前"升帧，进入的那一下也不会。
-- **可复现**：所有噪声都走固定 seed，同一台机器每次打开都是同一个世界，方便截图比对。
-- **无障碍**：画面是 `role="button"` 可聚焦元素，相位变化通过 `aria-live` 播报；`prefers-reduced-motion`
-  下会自动关掉持续流动。
+- **No post-processing library.** `src/post/composite.js` builds its own HDR chain
+  (HalfFloat target -> quarter-res bright pass -> two-pass 9-tap gaussian -> Khronos PBR Neutral tonemap -> manual sRGB encode).
+  Exposure, bloom and vignette are all driven by the sunrise progress, so getting brighter is not just a white overlay.
+- **Frame by frame, and without an endpoint.** Progress is an integer frame count, and the sun elevation, sky colours,
+  sea colours, fog and light intensity are all evaluated from the same curve. The renderer smooths towards it, so the sun
+  catches up when you tap quickly, but the readout is always the frame you tapped to.
+  The sun path has two segments: the first 60 frames go from -8.9 deg to 5.7 deg (slowing near the top), then an exponential tail
+  `MAX - (MAX-END)*exp(-(p-1)/2)` carries on, passed through a **smooth ceiling** so it is monotonic, bounded and continuous.
+  A bounded monotonic function must have a limit, so always rising can only mean approaching one: the code puts that limit at
+  `CEIL - BAND*ln2 = about 14.6 deg`, leaving 2.96 deg to the top of the frame (+17.6 deg) so neither the solar disc (angular radius about 0.97 deg)
+  nor its halo is ever clipped.
+- **After dawn the world keeps moving (nothing freezes at frame 60).** A second progress value, `dayAmountAt(p)`
+  (`1 - exp(-(p-1)/2.5)`), independently drives sky colour, clouds, stars, the sea, terrain emissive, fog density and post exposure/bloom.
+  Measured: from v=1 to v=6 (360 frames) the mean sky colour goes from (99,119,139) to (116,137,160) and overall mean luminance from 88 to about 100 -
+  rather than only the sun sliding.
+- **Banded polar terrain grid.** 0-30 m at 1.2 m rings, 30-110 m at 2.4 m, 110-210 m at 4.5 m, 210-600 m at 10 m, plus a sparse far band -
+  dense vertices near the camera, cheap near the horizon: 239k triangles in 3 draw calls.
+- **Colour consistency.** The custom shaders do their own colour-space encoding to match three's standard materials;
+  acceptance is always judged on the final post output, never on intermediate buffers (which miss one sRGB encode and read 2.4x too bright).
+- **Sun and sea reflection aligned.** The glitter path centreline does not use a specular horizontal offset ratio
+  (which pins the bright band to the middle of the screen); it subtracts the surface point's **azimuth** from the sun's azimuth in radians.
+  So at any distance the `e=0` centreline lands exactly on the sun's screen x, and the width is re-calibrated in radians (0.07 rad near, 0.13 rad far).
+- **The halo is never clipped by the top of the frame.** Its radius is not a fixed multiple but, each frame,
+  `min(natural angular radius, angular room from the sun centre to the top of frame x 0.92)`.
+- **The music is synthesized live**, with no audio files: 60 BPM, 4/4, a four-bar loop Cmaj7 -> Am7 -> Fmaj7 -> G6
+  (a new progression every two rounds, four in rotation, so it takes over two minutes to come back around),
+  across pad / bass / melody / bell / ambient-bed layers. Reverb uses a procedurally generated 3-second exponential-decay IR,
+  and the master goes through a lowpass and a soft compressor. The audio graph is only created on the first touch (autoplay policy);
+  volume and lowpass cutoff brighten with the sunrise, and it fades out when you leave the page so the reverb is not cut hard.
+- **The intro is a first-person monologue**: a near-black screen typed character by character, with longer pauses at punctuation.
+  Touching mid-typing completes it, touching again fades out (900 ms). Its listener is on `window` in the capture phase,
+  so tapping during the intro never lifts the sun early - including the touch that enters.
+- **Reproducible.** All noise uses fixed seeds: the same machine renders the same world every time, which makes screenshot comparison possible.
+- **Accessibility.** The scene is a focusable `role="button"`; phase changes are announced through `aria-live`;
+  `prefers-reduced-motion` disables the continuous motion automatically.
 
-## 已知取舍
+## Known trade-offs
 
-- 风格是**低多边形写意**而不是写实渲染：海岸两侧的山体是平滑的草坡 + 剪影针叶林，
-  近距离能看出面片感；远处的岩面与林窗主要靠顶点色交代。
-- 全亮那一帧的口岸草地上仍偏黄绿、树是背光剪影，是刻意保留的"清晨逆光"关系；
-  想要更写实的岩壁与林木，需要换成法线贴图 + 更密的网格。
-- 首屏独白不提供"跳过"按钮：按设计它只有两句话的时间，任意轻触就能过；
-  需要程序化跳过时可以调 `window.__XG_INTRO__.close()`。
-- 需要支持 WebGL2 的浏览器；创建失败时页面会给出提示而不是黑屏。
+- The style is **stylised low-poly**, not photoreal: the slopes on either side of the bay are smooth grass with silhouette conifers,
+  and the facets are visible up close; distant rock faces and forest gaps are carried by vertex colour.
+- The full-daylight frame still has a yellow-green meadow and backlit tree silhouettes - that is a deliberate early morning contre-jour relationship;
+  a more realistic cliff and forest would need normal maps and a denser mesh.
+- The intro has no skip button: by design it is only two sentences long and any touch passes it.
+  To skip it programmatically, call `window.__XG_INTRO__.close()`.
+- Requires a WebGL2 browser; if context creation fails the page shows a message instead of a black screen.
+
+## Deploying it
+
+The repository is ready for GitHub Pages as-is (all assets are relative, `.nojekyll` is included).
+Step-by-step instructions, including the free-domain route, are in [GITHUB.md](GITHUB.md).
+
+## License
+
+MIT - see [LICENSE](LICENSE). three.js is MIT licensed as well (`vendor/three.module.js`).

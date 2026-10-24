@@ -1,0 +1,110 @@
+# 把「心光」发布到 GitHub（并变成网站）
+
+> 这一页是给**你**看的操作手册。仓库已经在本机建好、首次提交已完成，剩下的只差「授权推送」这一步。
+> 全流程 0 元，不需要买服务器、不需要域名费。
+
+## 现在到哪一步了
+
+| 步骤 | 状态 |
+| --- | --- |
+| 本机建立 git 仓库、首次提交 | ✅ 已完成（`main` 分支，1 个提交 `cfee408`） |
+| 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
+| 开启 GitHub Pages 线上站点 | ⏳ 推送后由我完成（或你点两下） |
+| 申请免费域名 `名字.is-a.dev` | ⏳ 等站点上线后提 PR（见 [`docs/free-domain.md`](free-domain.md)） |
+
+## 第一步：给我一个 GitHub 授权（三选一）
+
+我没有你的 GitHub 账号，**推送必须由你授权**。任选一种，选完告诉我即可。
+
+### 方式 A：设备码登录（推荐，最安全）
+
+你在浏览器里输一个 8 位码，密码不用给我，令牌由 GitHub 直接发给本机脚本。
+
+```bash
+node tools/gh-auth.mjs start     # 打印一个形如 XXXX-XXXX 的用户码
+```
+
+然后**你自己**打开 https://github.com/login/device ，输入那串码、点授权（选 `repo` 权限）。
+授权后我在这边执行：
+
+```bash
+node tools/gh-auth.mjs poll      # 拿到令牌后写到 E:/shiguang-testbed/dl/gh-token.txt
+```
+
+令牌只落在测试台目录（不在仓库里），用完我会从远端凭据里移除。
+
+### 方式 B：给我一个 Personal Access Token
+
+1. 打开 https://github.com/settings/tokens → **Generate new token (classic)**
+2. 勾选 **`repo`**（必须）和 **`workflow`**（可选，以后要加自动部署才需要）
+3. 有效期建议 7 天
+4. 把 `ghp_...` 那串发给我（**只发给我，不要贴到公开地方**）
+
+### 方式 C：你自己推
+
+如果你更喜欢自己动手：
+
+```bash
+cd E:\心光
+git remote add origin https://github.com/<你的用户名>/xinguang.git
+git push -u origin main
+```
+
+推完把仓库地址发我，我接着配 Pages 和域名。
+
+## 第二步：开启 GitHub Pages（推送之后）
+
+仓库 → **Settings → Pages**：
+
+- Source: **Deploy from a branch**
+- Branch: **main** / **/(root)**
+- 保存，等 1–2 分钟
+
+线上地址就是： `https://<你的用户名>.github.io/xinguang/`
+
+站点已经准备好这些：
+- 全部资源走**相对路径**，放在 `/<仓库名>/` 子路径下不会 404
+- 带了 `.nojekyll`，Jekyll 不会去动 `src/` 之类的目录
+- 纯静态、零构建：Pages 直接托管仓库根目录即可
+- 想验证的话打开站点点几下，或用任意静态服务器本地跑 `node serve.mjs`
+
+## 第三步：免费域名（可选但推荐）
+
+详细调研见 [`docs/free-domain.md`](free-domain.md)，结论是两条腿走路：
+
+| 方案 | 拿到什么 | 需要你做什么 |
+| --- | --- | --- |
+| **is-a.dev**（首选） | `xinguang.is-a.dev` 这样的独立二级域 | 定个名字 → 用一个 GitHub PR 申请（几小时~3 天合并，永久免费） |
+| **Cloudflare Pages**（镜像） | `xinguang.pages.dev` | 用 GitHub 授权一次，连仓库自动部署；国内访问更稳 |
+| 保底 | `用户名.github.io/xinguang/` | 什么都不用做 |
+
+### 申请 is-a.dev 的 DNS 记录
+
+心光是子域，只需要一条：
+
+| 类型 | 名称 | 值 |
+| --- | --- | --- |
+| `CNAME` | `xinguang` | `<你的用户名>.github.io` |
+
+（如果以后要给**顶级域**绑 Pages，才需要 A 记录 `185.199.108.153` ~ `185.199.111.153` 与 AAAA `2606:50c0:8000::153` ~ `2606:50c0:8003::153`。）
+
+仓库里对应的文件是 `CNAME`（一行，只有域名，**不带** `https://`、不带路径）：
+
+```
+xinguang.is-a.dev
+```
+
+顺序很重要：**先在 Settings → Pages 里填自定义域，再去加 DNS**；反过来可能被别人抢注子域。证书签发最长等 1 小时，好了之后勾上 **Enforce HTTPS**。
+
+## 这个仓库里有什么
+
+- `index.html` + `src/` + `vendor/`：多文件版（开发用，需要静态服务器）
+- `心光.html`：单文件版（three.js 全内联，双击即开，约 1.5 MB）
+- `preview/`、`screenshots/`：README 与文档里的截图
+- `LICENSE`：MIT
+
+## 常见问题
+
+**推送要密码怎么办？** GitHub 已经不允许密码推送，用上面的令牌；令牌会存在 Windows 凭据管理器里，之后就不用再输。
+**仓库名可以改吗？** 可以，但 Pages 地址会跟着变，改完记得同步 `CNAME`（如果用自定义域则不受影响）。
+**国内打不开 github.io？** 用方案里的 Cloudflare Pages 镜像，同一个仓库可以同时挂两份。
