@@ -7,7 +7,7 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，15 个提交，工作区干净） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，21 个提交，工作区干净） |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
 | 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控） |
 | 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点（已彩排） |
@@ -70,6 +70,9 @@ node tools/gh-release.mjs --repo xinguang
 > 推送用的令牌通过一个临时凭据文件交给 git，`finally` 里立即删除，`git config` 里不留任何痕迹。凭据文件的 `protocol://host` 是从实际 remote 推导的；push 前会先清空机器上预置的 credential helper —— Git for Windows 自带的 `credential-helper-selector` 会在无人值守时**挂住等人手输密码**，必须显式绕过。
 >
 > 跑完 `origin` 会留在仓库里（脚本故意不自动删，方便你接着手动 `git push`）。不想要就 `git remote remove origin`。
+> 但**推送失败时脚本会自己把 `origin` 摘掉**并打印 `REMOTE_REMOVED_AFTER_FAILURE`，免得你对着一个指向失败 push 的 remote 猜发生了什么。
+>
+> 中断残留也考虑到了：临时凭据文件由 `finally` 删除，脚本还会在**启动时先扫一遍**上一次被强杀留下的 `.gitcred-tmp`（打印 `STALE_CRED_REMOVED`）。注意 Windows 上 Node 的 `SIGTERM`/`SIGINT` 处理器对 `TerminateProcess` 强杀**根本不会运行**，所以真正的兜底是这次启动清扫，而不是信号处理。
 
 ### 需要你拍板的三个默认值
 
