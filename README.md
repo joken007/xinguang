@@ -150,6 +150,7 @@ there is no build step. The whole release is scripted:
 | Command | What it does |
 | --- | --- |
 | `npm run preflight` | read-only doctor: says what is still missing before publishing (token, repo, Pages, DNS, tree state); it never writes anything |
+| `npm run live` | one command: doctor -> release (create/push/enable Pages/verify) -> point the metadata at the live URL; a doctor that says no never deploys |
 | `npm run auth` | GitHub device-code login; the code renews itself and the token lands outside the repo |
 | `npm run release` | create the repo, push `main`, enable Pages, wait for the build, **then open the live URL and verify it** |
 | `npm run polish -- --url <live-url> [--push]` | rewrite the placeholder addresses in the metadata and docs to the real URL, rebuild the single-file bundle, commit (and push) |

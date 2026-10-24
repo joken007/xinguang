@@ -8,6 +8,7 @@
     "start": "node serve.mjs",
     "start:py": "python -m http.server 5173",
     "preflight": "node tools/preflight.mjs",
+    "live": "node tools/go-live.mjs",
     "auth": "node tools/gh-auth.mjs wait",
     "release": "node tools/gh-release.mjs",
     "polish": "node tools/publish-polish.mjs",

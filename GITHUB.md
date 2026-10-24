@@ -7,11 +7,11 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，49 个提交 / 55 个文件，工作区干净） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，50 个提交 / 56 个文件，工作区干净） |
 | 发布前体检 | ✅ `node tools/preflight.mjs` 一条命令列出「还缺什么」（令牌/仓库/Pages/DNS/工作区，加上站点能不能在 Pages 上跑、有没有令牌串被跟踪），只读不改 |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
 | 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当时全部提交 / 55 个文件真的推了起来，站点自检 200） |
-| 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
+| 授权后自动发布 | ✅ 已就绪：`npm run live` 一条命令在前台做完全程（体检 → 建仓/推送/开 Pages/验站点 → 元数据指向线上地址）；也可以让 `node tools/watch-and-release.mjs`（现在等 7 天）一看到令牌就自己跑，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
 | 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
 | 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开；推送后 `.github/workflows/check.yml` 会再验一遍 |
 | 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排，且已按 is-a.dev 2026-10 的新规则改造：PR 正文用官方模板现抓现填、域名文件带 `owner.email`；`xinguang.is-a.dev` 今天实测仍是空的，`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
@@ -97,6 +97,14 @@ git push -u origin main
 ```bash
 node tools/gh-release.mjs --repo xinguang
 ```
+
+不想依赖后台那个一直挂着的 watcher，就用一条命令在**前台**走完同样三步（体检 → 发布 → 把元数据指向线上地址）：
+
+```bash
+node tools/go-live.mjs            # 或 npm run live
+```
+
+它**先跑体检**，不过就不部署：`index.html` 里写了根绝对路径（Pages 上必然 404）、importmap 指向空、`vendor/three.module.js` 缺了、或者工作区里跟踪了令牌串，都会在第一步停下并原样退出体检的码（`2` 没令牌 / `3` 令牌被拒 / `5` 站点有问题）。发布成功后会接着跑 `publish-polish --push`；这一步失败**不会**把已经上线的发布判成失败，只打印重新指向的命令。
 
 它会依次：校验令牌身份 → 建仓库（已存在则复用）→ 把 `main` 直接推到仓库地址 → **推成功之后**才配上 `origin`（并本地重建跟踪分支，不再回拉一次网络）→ 调 API 开启 Pages → 轮询构建状态（最多 20×15s）→ **打开线上地址真验一遍**（`index.html` 200、页面标记齐全、`vendor/three.module.js` 与 `src/*.js` 全部 200 且返回 javascript/css 类型——模块被当成 `text/plain` 发出去时页面只会白屏，而这类事故光看首页是 200 看不出来的；单文件版 `心光.html` 取不到只记一条警告）→ 给仓库设主页地址与话题（`homepage` 指线上站点，话题写 `mindfulness / meditation / threejs / webgl / generative-art`；这一步失败只打一行 `REPO_HOMEPAGE_SKIPPED` / `REPO_TOPICS_SKIPPED`，不会把已经上线的发布判成失败）→ 打印 `LIVE_URL`。
 
@@ -236,6 +244,7 @@ node tools/publish-polish.mjs --url https://xinguang.is-a.dev/ --push
 | --- | --- |
 | `preflight` | `0` 都齐了 · `2` 没有令牌 · `3` 令牌被拒 · `4` checkout 不可用（不是仓库 / 没有 git / 缺 Pages 要取的文件） · `5` 站点或仓库卫生有问题（根绝对路径、importmap 指向空、令牌串被跟踪、单文件超 100 MiB） · `6` GitHub 没应答（含 5xx） |
 | `gh-release` | `0` 成功 · `1` **线上站点验证失败** · `2` 没有令牌 · `3` 令牌无效 · `4` 建仓库失败 · `5` **推送失败**（含超时） · `6` **网络不通/超时** · `7` 开 Pages 失败 · `8` **GitHub 那边建站失败**（Pages 构建 `errored`：脚本会引用 GitHub 给的原因并让你去看 Actions 里的构建日志，不会把它混成「站点没应答」；这不是重试能修的，站点会一直 404 到构建本身被修好） |
+| `go-live` | `0` 站点已上线（含元数据收尾） · 其余 = 失败那一步的退出码（体检的 `2`/`3`/`4`/`5`/`6`，或发布的 `1`–`8`）。元数据那步失败不改变退出码，因为站点已经上线了 |
 | `gh-domain` | `0` 成功 · `2` 没有令牌 / 没给 `--email` 或邮箱格式不对 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `6`/`7` 建分支失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
 | `publish-polish` | `0` 成功 · `2` 没有令牌 / `--url` 缺失或不是 http(s) 地址 · `4` 仓库里没有 `origin`（先跑 `gh-release`） · `5` **推送失败** · `6` 重打包单文件版失败 · `7` 提交失败（仓库没配 `user.name` / `user.email`） |
 | `gh-custom-domain` | `0` 成功（含证书还没就绪时只警告） · `2` 没有令牌 / `--domain` 缺失或格式不对 · `3` 令牌无效 · `4` **Pages 还没开**（先去跑 `gh-release`） · `5` **域名还打不开/验证失败** · `6` 网络不通 / 读写 Pages 失败 |

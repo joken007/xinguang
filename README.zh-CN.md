@@ -59,6 +59,7 @@ three.js（r169）已放在 `vendor/three.module.js`，不需要 npm install。
 | 命令 | 作用 |
 | --- | --- |
 | `npm run preflight` | 只读体检：告诉你发布前还缺什么（令牌、仓库、Pages、DNS、工作区状态），什么都不改 |
+| `npm run live` | 一条命令走完：体检 → 发布（建仓库/推送/开 Pages/验线上）→ 把元数据指向线上地址；体检不通过**不会**部署 |
 | `npm run auth` | 设备码登录：码会自动续期，授权后把令牌写到仓库外的临时目录 |
 | `npm run release` | 建仓库 → 推送 → 开启 Pages → 轮询构建 → **真打开线上地址验一遍** |
 | `npm run polish -- --url <线上地址> [--push]` | 把元数据和文档里的占位地址改成真实地址、重打包单文件版、提交（并可推送） |
