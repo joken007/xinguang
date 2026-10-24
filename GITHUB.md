@@ -7,10 +7,10 @@
 
 | 步骤 | 状态 |
 | --- | --- |
-| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，34 个提交 / 53 个文件，工作区干净） |
+| 本机建立 git 仓库、提交历史 | ✅ 已完成（`main` 分支，38 个提交 / 53 个文件，工作区干净） |
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
-| 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当前全部 34 个提交 / 53 个文件真的推了起来，站点自检 200） |
-| 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点（已彩排） |
+| 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当前全部 38 个提交 / 53 个文件真的推了起来，站点自检 200） |
+| 授权后自动发布 | ✅ 已就绪：`node tools/watch-and-release.mjs` 一看到令牌就自动建仓/推送/开 Pages/验站点，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
 | 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
 | 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开；推送后 `.github/workflows/check.yml` 会再验一遍 |
 | 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排；`xinguang.is-a.dev` 今天实测仍是空的：访问会落到 is-a.dev 的「Available Domain」页（HTTP 200），`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
@@ -97,7 +97,7 @@ node tools/gh-release.mjs --repo xinguang
 - 带了 `.nojekyll`，Jekyll 不会去动 `src/` 之类的目录
 - 纯静态、零构建：Pages 直接托管仓库根目录即可
 - 应用图标、`site.webmanifest`（可以「添加到主屏幕」当应用打开）、`robots.txt` 都已就位
-- 社交分享用的是 `./preview/03-bright.png`（相对地址）。微信 / Twitter 的抓取器要绝对地址，知道最终域名后跑一次 `tools/publish-polish.mjs`（见下一节）即可
+- 社交分享用的是 `./preview/03-bright.png`（相对地址）。微信 / Twitter 的抓取器要绝对地址，所以 `watch-and-release` 发布成功后会自己跑一次 `tools/publish-polish.mjs`（见下一节）；只有想换地址或手工重跑时才需要自己敲命令
 - 想验证的话打开站点点几下，或用任意静态服务器本地跑 `node serve.mjs`
 
 `main` 每次推送都会跑一遍 `.github/workflows/check.yml`：语法检查 → 重新打包单文件版并要求与仓库里的一致 → 用 `tools/verify-live.mjs` 访问线上地址确认能打开。所以首页一旦坏掉，仓库的 Actions 会先红给你看。
@@ -179,5 +179,5 @@ node tools/gh-domain.mjs --domain xinguang      # 查重名 → fork → 建分�
 | `gh-release` | `0` 成功 · `1` **线上站点验证失败** · `2` 没有令牌 · `3` 令牌无效 · `4` 建仓库失败 · `5` **推送失败**（含超时） · `6` **网络不通/超时** · `7` 开 Pages 失败 |
 | `gh-domain` | `0` 成功 · `2` 没有令牌 · `3` 令牌无效 · `4` 域名已被占 · `5` fork 失败 · `6`/`7` 建分支失败 · `8` 写文件失败 · `9` **PR 没能开出来** |
 | `publish-polish` | `0` 成功 · `2` 没有令牌 / `--url` 缺失或不是 http(s) 地址 · `4` 仓库里没有 `origin`（先跑 `gh-release`） · `5` **推送失败** · `6` 重打包单文件版失败 · `7` 提交失败（仓库没配 `user.name` / `user.email`） |
-| `watch-and-release` | `0` 发布成功 · `2` `--hours` 参数不合法 · `3` 等不到令牌 · `124` 发布超过 20 分钟被掐断 · 其余 = `gh-release` 的退出码 |
+| `watch-and-release` | `0` 发布成功（含随后的元数据收尾） · `2` `--hours` / 环境变量不合法 · `3` 等不到令牌 · `124` 发布超过 20 分钟被掐断 · 其余 = `gh-release` 的退出码。收尾那一步失败**不**改变退出码，因为站点本身已经上线了 —— 它会把 `POLISH_FAILED` 和该敲的命令写进同一行 `DONE_LIVE` 日志 |
 **国内打不开 github.io？** 用方案里的 Cloudflare Pages 镜像，同一个仓库可以同时挂两份。
