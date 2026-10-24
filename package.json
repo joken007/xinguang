@@ -6,7 +6,11 @@
   "description": "心光 · 一念升起，天地渐明 —— three.js 正念日出网页",
   "scripts": {
     "start": "node serve.mjs",
-    "start:py": "python -m http.server 5173"
+    "start:py": "python -m http.server 5173",
+    "auth": "node tools/gh-auth.mjs wait",
+    "release": "node tools/gh-release.mjs",
+    "domain": "node tools/gh-domain.mjs --domain xinguang",
+    "verify": "node tools/verify-live.mjs"
   },
   "dependencies": {}
 }

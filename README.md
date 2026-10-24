@@ -140,7 +140,16 @@ src/
 
 ## Deploying it
 
-The repository is ready for GitHub Pages as-is (all assets are relative, `.nojekyll` is included).
+The repository is ready for GitHub Pages as-is: every asset is relative, `.nojekyll` is included, and
+there is no build step. The whole release is scripted:
+
+| Command | What it does |
+| --- | --- |
+| `npm run auth` | GitHub device-code login; the code renews itself and the token lands outside the repo |
+| `npm run release` | create the repo, push `main`, enable Pages, wait for the build, **then open the live URL and verify it** |
+| `npm run domain` | open a pull request for a free `xinguang.is-a.dev` subdomain |
+| `npm run verify -- <url>` | check any deployed URL on its own (index 200 + markers + every referenced asset) |
+
 Step-by-step instructions, including the free-domain route, are in [GITHUB.md](GITHUB.md).
 
 ## License

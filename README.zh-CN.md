@@ -51,6 +51,18 @@ three.js（r169）已放在 `vendor/three.module.js`，不需要 npm install。
 太阳升到不同高度时，页脚的相位文字会跟着变
 （黎明之前 / 天际微明 / 东方既白 / 晨光初照 / 旭日东升 / 天光大亮）。
 
+## 发布到 GitHub / 变成网站
+
+仓库已经可以直接当 GitHub Pages 站点托管（全部资源走相对路径、带 `.nojekyll`、零构建）。
+发布流程写成了一条命令，另见 [`GITHUB.md`](GITHUB.md) 的逐步说明：
+
+| 命令 | 作用 |
+| --- | --- |
+| `npm run auth` | 设备码登录：码会自动续期，授权后把令牌写到仓库外的临时目录 |
+| `npm run release` | 建仓库 → 推送 → 开启 Pages → 轮询构建 → **真打开线上地址验一遍** |
+| `npm run domain` | 向 `is-a-dev/register` 提 PR 申请 `xinguang.is-a.dev` |
+| `npm run verify -- <url>` | 独立校验任意已部署地址（首页 200 + 标记齐全 + 依赖全 200） |
+
 ## 目录
 
 ```
