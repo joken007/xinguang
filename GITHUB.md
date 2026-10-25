@@ -60,7 +60,9 @@ SUMMARY blocked on: TOKEN
 node tools/gh-auth.mjs start     # 生成一个形如 XXXX-XXXX 的用户码（15 分钟有效）
 ```
 
-然后**你自己**打开 https://github.com/login/device ，输入那串码、点授权（选 `repo` 权限）。
+然后**你自己**打开 https://github.com/login/device ，输入那串码、点授权。
+
+权限要 `repo` + `workflow`：`repo` 用来建仓库/推送/开 Pages，`workflow` 用来推 `.github/workflows/check.yml`（少了它 GitHub 会拒收整个推送：`refusing to allow an OAuth App to create or update workflow ... without workflow scope`）。`tools/gh-auth.mjs` 申请的就是这两个。
 
 码会过期，所以真正等待时用的是这个（码快过期会自动换一个新的并在终端响铃提醒，全程不需要人盯着）：
 
@@ -74,7 +76,7 @@ node tools/gh-auth.mjs wait --minutes 720
 ### 方式 B：给我一个 Personal Access Token
 
 1. 打开 https://github.com/settings/tokens → **Generate new token (classic)**
-2. 勾选 **`repo`**（必须）和 **`workflow`**（可选，以后要加自动部署才需要）
+2. 勾选 **`repo`**（必须）和 **`workflow`**（必须——仓库里有 `.github/workflows/check.yml`，带 workflow 的推送会被拒）
 3. 有效期建议 7 天
 4. 把 `ghp_...` 那串发给我（**只发给我，不要贴到公开地方**）
 
