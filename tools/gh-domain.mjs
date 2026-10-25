@@ -36,6 +36,14 @@ const siteOverride = arg('site', '');
 const email = arg('email', '');
 const purpose = arg('purpose', 'An open-source three.js / WebGL mindfulness page: a calming quote appears at random, every touch raises the sun one frame higher, and the scene slowly reveals forest, sea and mountains.');
 const dryRun = process.argv.includes('--dry-run');
+// is-a.dev's AGENTS.md: an agent may only open the request when the user insists, and then the title
+// has to carry this exact string and the description has to say the request is AI-generated.
+const aiGenerated = process.argv.includes('--ai');
+const prTitle = 'Add ' + domain + '.is-a.dev' + (aiGenerated ? ' (dns-preflight)' : '');
+const AI_NOTE = '> [!IMPORTANT]'
+  + NL + '> This pull request was opened by an AI agent on behalf of @' + (process.env.IS_A_DEV_OWNER || 'the repository owner') + ', who asked for it and does not know how to file a PR.'
+  + NL + '> It is flagged with the `(dns-preflight)` convention described in this repository\'s `AGENTS.md`.';
+function withAiNote(body) { return aiGenerated ? body + NL + NL + AI_NOTE + NL : body; }
 // The pull request template asks for contact details in the `owner` block, and an email there is the
 // documented way to give them. It is a public field in a public repository, so say so out loud.
 if (!email) { console.log('NO_CONTACT pass --email <address>: is-a.dev wants contact details in the domain file'); process.exit(2); }
@@ -107,10 +115,10 @@ console.log('PAYLOAD ' + JSON.stringify(payload));
 if (dryRun) {
   const tpl = await prTemplate();
   const body = fillTemplate(tpl.text, site, purpose || note);
-  console.log('PR_TITLE ' + 'Add ' + full);
-  console.log('PR_TEMPLATE ' + tpl.source + ' body=' + body.length + ' bytes');
+  console.log('PR_TITLE ' + prTitle);
+  console.log('PR_TEMPLATE ' + tpl.source + ' body=' + withAiNote(body).length + ' bytes');
   console.log('PR_BODY_PREVIEW ---');
-  console.log(body);
+  console.log(withAiNote(body));
   console.log('--- end');
   console.log('DRY_RUN done');
   process.exit(0);
@@ -140,12 +148,12 @@ else { console.log('FILE_FAILED ' + put.status); process.exit(8); }
 
 const tpl = await prTemplate();
 const body = fillTemplate(tpl.text, site, purpose || note);
-console.log('PR_TITLE ' + 'Add ' + full);
-console.log('PR_TEMPLATE ' + tpl.source + ' body=' + body.length + ' bytes');
+console.log('PR_TITLE ' + prTitle);
+console.log('PR_TEMPLATE ' + tpl.source + ' body=' + withAiNote(body).length + ' bytes');
 console.log('PR_BODY_PREVIEW ---');
-console.log(body);
+console.log(withAiNote(body));
 console.log('--- end');
-const pr = await api('POST', '/repos/' + UPSTREAM + '/pulls', { title: 'Add ' + full, head: owner + ':' + branch, base: defaultBranch, body: body });
+const pr = await api('POST', '/repos/' + UPSTREAM + '/pulls', { title: prTitle, head: owner + ':' + branch, base: defaultBranch, body: withAiNote(body) });
 if (pr.status === 201) console.log('PR_OPENED ' + pr.json.html_url);
 else { console.log('PR_FAILED ' + pr.status + ' ' + JSON.stringify(pr.json).slice(0, 400)); process.exit(9); }
 console.log('REMINDER is-a.dev asks that the request be written by a human: open the PR and rewrite the description in your own words before a maintainer looks at it.');

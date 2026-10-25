@@ -1,7 +1,10 @@
 # is-a.dev 域名申请材料（已备好，替换占位符即可提交）
 
 > **2026-10-25 当前状态：站点已经上线，`https://joken007.github.io/xinguang/`（Pages + HTTPS，CI 全绿）。**
-> 申请 `xinguang.is-a.dev` 只是「更好记的地址」这一步，还没提交。
+> 申请 `xinguang.is-a.dev` 只是「更好记的地址」这一步：**已按官方豁免路径代提过一次，被机器人拒了**——
+> [PR #58328](https://github.com/is-a-dev/register/pull/58328) 标题带 `(dns-preflight)`、正文末尾写明
+> AI 代提，4 分钟后 `Filter out AI-generated PRs` 检查判定为 AI 生成并直接关闭。结论：
+> **这条路的 PR 只能你本人写、本人提交**，脚本和代理都只负责把材料备好。
 
 > ⚠️ **is-a.dev 官方明令禁止 AI 代提 PR。** 他们的 `AGENTS.md` 原文：
 > "The maintainers of this repository **do not accept AI-generated pull requests**. …
@@ -50,14 +53,17 @@
    （文件名 = 你要的域名全称 + `.json`，小写；二级域就写 `xinguang.is-a.dev.json`，不要写 `www.` 前缀）。
 3. 向 `is-a-dev/register` 的默认分支提 Pull Request，**保留官方 PR 模板**并逐项填好，附上站点链接与截图。
 
-## 或者：让我用脚本自动开 PR
+## 脚本只做自查和桌面准备（不要用它开 PR）
 
-有 GitHub 令牌后（见 [`GITHUB.md`](../../GITHUB.md) 第一步）：
+有 GitHub 令牌后（见 [`GITHUB.md`](../../GITHUB.md) 第一步），`--dry-run` 是只读的：查名字有没有被占、
+站点能不能打开、并把你该贴进 PR 的正文打印出来。
 
 ```bash
-node tools/gh-domain.mjs --domain xinguang --email you@example.com --dry-run   # 先看它会提交什么（含 PR 正文预览）
-node tools/gh-domain.mjs --domain xinguang --email you@example.com             # 真的提交
+node tools/gh-domain.mjs --domain xinguang --email you@example.com --dry-run   # 只打印，不动远程
 ```
+
+去掉 `--dry-run` 会真的 fork + 建分支 + 开 PR —— **2026-10-25 实测这样开的 PR 会被机器人以「AI-Generated」关掉**，
+所以别这么干；材料和正文都准备好了，剩下点提交这件事必须是你本人。
 
 它会自动：检查 `xinguang` 是否被占用 → fork → 建分支 → 写入 `domains/xinguang.is-a.dev.json` → 开 PR，最后打印 PR 链接。
 PR 正文是按 is-a.dev 的模板现抓现填的（模板取不到时用脚本内置的快照），预览链接与用途自动填进标记之间；

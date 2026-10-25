@@ -163,8 +163,16 @@ node tools/publish-polish.mjs --url https://<你的用户名>.github.io/xinguang
 
 > ⚠️ is-a.dev 的 `AGENTS.md`（写给 AI 代理的规则）原文：**不接收 AI 生成的 PR**，并要求代理
 > **不要**替用户开 PR、也不要推一条准备拿来开 PR 的分支；如果用户坚持，标题必须带 `(dns-preflight)`
-> 并在描述里写明是 AI 生成。所以 `tools/gh-domain.mjs` 不要再让代理跑（它会把 PR 直接开出去）；
-> 要提就你自己提，材料在 [`docs/is-a-dev-pr/`](docs/is-a-dev-pr/)。
+> 并在描述里写明是 AI 生成。
+>
+> **2026-10-25 实测：上面这条豁免路径也走不通。** PR
+> [#58328](https://github.com/is-a-dev/register/pull/58328)（标题 `Add xinguang.is-a.dev (dns-preflight)`、
+> 正文末尾写明「由 AI 代理代提」）提交后 **4 分钟**就被机器人用 `Filter out AI-generated PRs` 这一项检查
+> 判为 AI 生成并直接关闭，理由原文：「### AI-Generated Pull Request … We are strongly against pull requests
+> made with AI and reserve the right to close the pull request」。**所以这条路没有任何脚本能替你走完：
+> 文件可以准备好，但 PR 必须由你本人写、本人点提交。** 旧 PR 已被关闭，不要在原 PR 里争辩，
+> 要提就在 fork (`joken007/register`) 的 `add-xinguang` 分支上另开一条新 PR。
+> 材料在 [`docs/is-a-dev-pr/`](docs/is-a-dev-pr/)；`tools/gh-domain.mjs` 现在只当自查工具用（`--dry-run`）。
 
 详细调研见 [`docs/free-domain.md`](docs/free-domain.md)，结论是两条腿走路：
 
