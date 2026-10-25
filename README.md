@@ -17,7 +17,7 @@ The sun does not stop at the top either; it keeps climbing, very slowly, forever
 
 ## Live demo
 
-Once GitHub Pages is enabled this page is served at `https://<user>.github.io/xinguang/`.
+Live at <https://joken007.github.io/xinguang/>.
 Everything is static - no build step, no backend, no analytics.
 
 ## Running it

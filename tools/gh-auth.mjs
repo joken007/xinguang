@@ -13,7 +13,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const CLIENT_ID = '178c6fc778ccc68e1d6a';
-const SCOPE = 'repo read:user';
+const SCOPE = 'repo workflow read:user';
 import { existsSync as _exists } from 'node:fs';
 import { homedir as _homedir } from 'node:os';
 import { join as _join } from 'node:path';

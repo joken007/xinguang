@@ -12,8 +12,8 @@
 | 仓库结构可直接当 Pages 站点托管 | ✅ 已验证（子路径下 13 个 ES 模块全部 200） |
 | 推送与开启 Pages 的脚本 | ✅ 已写好，并用本地裸仓库 + 假 GitHub API **端到端实跑验证过**（含「故意做坏一个资源」的负控；最近一次彩排把当时全部提交 / 55 个文件真的推了起来，站点自检 200） |
 | 授权后自动发布 | ✅ 已就绪：`npm run live` 一条命令在前台做完全程（体检 → 建仓/推送/开 Pages/验站点 → 元数据指向线上地址）；也可以让 `node tools/watch-and-release.mjs`（现在等 7 天）一看到令牌就自己跑，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
-| 推送到你的 GitHub 账号 | ⏳ **需要你授权**（见下面「第一步」） |
-| 开启 GitHub Pages 线上站点 | ⏳ 授权后我一条命令做完，并自动验证站点真的能打开；推送后 `.github/workflows/check.yml` 会再验一遍 |
+| 推送到你的 GitHub 账号 | ✅ 已推送：<https://joken007.github.io/xinguang/> |
+| 开启 GitHub Pages 线上站点 | ✅ 已上线并验证：<https://joken007.github.io/xinguang/> |
 | 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排，且已按 is-a.dev 2026-10 的新规则改造：PR 正文用官方模板现抓现填、域名文件带 `owner.email`；`xinguang.is-a.dev` 今天实测仍是空的，`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
 | PR 合并后把域名挂到 Pages（填 cname → 开 HTTPS → 验线上） | ✅ 脚本已就绪并彩排（`tools/gh-custom-domain.mjs`，原来要人去 Settings 手点） |
 
