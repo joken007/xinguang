@@ -1,9 +1,9 @@
 {
     "owner": {
-        "username": "<your-github-username>",
-        "email": "<your-email>"
+        "username": "joken007",
+        "email": "<填一个能联系到你的邮箱：会公开在 is-a.dev 仓库里>"
     },
     "records": {
-        "CNAME": "<your-github-username>.github.io"
+        "CNAME": "joken007.github.io"
     }
 }

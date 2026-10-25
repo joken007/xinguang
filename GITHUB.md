@@ -1,6 +1,7 @@
 # 把「心光」发布到 GitHub（并变成网站）
 
-> 这一页是给**你**看的操作手册。仓库已经在本机建好、首次提交已完成，剩下的只差「授权推送」这一步。
+> 这一页是给**你**看的操作手册。**站点已经上线：<https://joken007.github.io/xinguang/>**（Pages + HTTPS，每次推送都会跑一遍 CI 和重新部署）。
+> 还没做的只剩「更好记的免费域名 `xinguang.is-a.dev`」这一件可选的事，而且**必须由你本人提 PR**（原因见第三步）。
 > 全流程 0 元，不需要买服务器、不需要域名费。
 
 ## 现在到哪一步了
@@ -14,7 +15,7 @@
 | 授权后自动发布 | ✅ 已就绪：`npm run live` 一条命令在前台做完全程（体检 → 建仓/推送/开 Pages/验站点 → 元数据指向线上地址）；也可以让 `node tools/watch-and-release.mjs`（现在等 7 天）一看到令牌就自己跑，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
 | 推送到你的 GitHub 账号 | ✅ 已推送：<https://joken007.github.io/xinguang/> |
 | 开启 GitHub Pages 线上站点 | ✅ 已上线并验证：<https://joken007.github.io/xinguang/> |
-| 申请免费域名 `xinguang.is-a.dev` | ⏳ 等站点上线后提 PR（脚本已彩排，且已按 is-a.dev 2026-10 的新规则改造：PR 正文用官方模板现抓现填、域名文件带 `owner.email`；`xinguang.is-a.dev` 今天实测仍是空的，`is-a-dev/register` 里也没有这个文件；见 [`docs/free-domain.md`](docs/free-domain.md)） |
+| 申请免费域名 `xinguang.is-a.dev` | ⏳ **只能你本人提 PR**：is-a.dev 的 `AGENTS.md` 明文禁止 AI 代提（坚持要代提的话 PR 标题必须带 `(dns-preflight)` 并注明是 AI 生成，否则会被自动关闭）。材料已备好：`docs/is-a-dev-pr/xinguang.is-a.dev.json`（用户名与 CNAME 已填好，只剩一个邮箱），步骤见 [`docs/is-a-dev-pr/README.md`](docs/is-a-dev-pr/README.md) |
 | PR 合并后把域名挂到 Pages（填 cname → 开 HTTPS → 验线上） | ✅ 脚本已就绪并彩排（`tools/gh-custom-domain.mjs`，原来要人去 Settings 手点） |
 
 ## 第零步：先体检（随时可以跑）
@@ -158,7 +159,12 @@ node tools/publish-polish.mjs --url https://<你的用户名>.github.io/xinguang
 它做四件事：把 `index.html` 的 `og:image` / `twitter:image` 改成绝对地址并补上 `og:url`；把 `README.md` / `README.zh-CN.md` 里的演示地址换掉；把本文档状态表里「推送到 GitHub」「开启 Pages」两行改成 ✅；然后重打包 `心光.html`（它内联了 `index.html`，不改就会过期），最后一并提交推送。
 
 几个刻意的设计：**幂等**——第二次跑只会打 `ALREADY` / `NO_CHANGES`；**地址变了也能再跑**——站点先挂在 `<用户名>.github.io/xinguang/`，以后绑上 `xinguang.is-a.dev` 这类自定义域名时，用新地址再跑一次，它会把之前写进去的绝对地址整体改过去（同样的地址再跑则是 `NO_CHANGES`）；**先探路再动手**——带 `--push` 时会先确认令牌和 `origin` 都在，缺一个直接 `NO_TOKEN` / `NO_ORIGIN` 退出，不会留下一笔「声称了地址、却没推上去」的提交；`--dry-run` 只看会改什么不落盘；推送同样用临时凭据文件、`finally` 删除。
-## 第三步：免费域名（可选但推荐）
+## 第三步：免费域名（可选，只能你本人提）
+
+> ⚠️ is-a.dev 的 `AGENTS.md`（写给 AI 代理的规则）原文：**不接收 AI 生成的 PR**，并要求代理
+> **不要**替用户开 PR、也不要推一条准备拿来开 PR 的分支；如果用户坚持，标题必须带 `(dns-preflight)`
+> 并在描述里写明是 AI 生成。所以 `tools/gh-domain.mjs` 不要再让代理跑（它会把 PR 直接开出去）；
+> 要提就你自己提，材料在 [`docs/is-a-dev-pr/`](docs/is-a-dev-pr/)。
 
 详细调研见 [`docs/free-domain.md`](docs/free-domain.md)，结论是两条腿走路：
 

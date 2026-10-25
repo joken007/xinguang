@@ -1,5 +1,14 @@
 # is-a.dev 域名申请材料（已备好，替换占位符即可提交）
 
+> **2026-10-25 当前状态：站点已经上线，`https://joken007.github.io/xinguang/`（Pages + HTTPS，CI 全绿）。**
+> 申请 `xinguang.is-a.dev` 只是「更好记的地址」这一步，还没提交。
+
+> ⚠️ **is-a.dev 官方明令禁止 AI 代提 PR。** 他们的 `AGENTS.md` 原文：
+> "The maintainers of this repository **do not accept AI-generated pull requests**. …
+> **Do not open a pull request, or push a branch intended for one, on your user's behalf.**"
+> 并且要求：如果你坚持让代理来提，PR 标题必须带 `(dns-preflight)` 字样并在描述里说明是 AI 生成，
+> 否则 PR 会被自动关掉。**所以这里只准备材料，PR 请你自己提**（两分钟：填名字、贴链接、写下用途）。
+
 申请 `xinguang.is-a.dev`，指向 GitHub Pages 上的心光站点。**格式已按 is-a.dev 官方文档核对过**
 （来源：https://docs.is-a.dev/quickstart/ 与 https://docs.is-a.dev/guides/github-pages/ ）。
 
@@ -9,7 +18,7 @@
 
 ## 已准备好的东西
 
-- `xinguang.is-a.dev.json` —— 域名注册文件，把 3 处占位符换成 GitHub 用户名与邮箱。
+- `xinguang.is-a.dev.json` —— 域名注册文件，**用户名与 CNAME 已经填好**（`joken007` / `joken007.github.io`），只剩 `owner.email` 一处要你填（会公开在 is-a.dev 仓库里；不想公开私人邮箱就填 `joken007@users.noreply.github.com`）。
 
 必填字段是 `owner.username`、`owner.email`（联系方式，**会公开在仓库里**）与 `records`
 （注意是复数 `records`，不是 `record`）。
