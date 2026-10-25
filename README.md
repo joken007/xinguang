@@ -17,7 +17,9 @@ The sun does not stop at the top either; it keeps climbing, very slowly, forever
 
 ## Live demo
 
-Live at <https://joken007.github.io/xinguang/>.
+- Short link: <https://xinguang.surge.sh/> (surge.sh, free subdomain)
+- Canonical: <https://joken007.github.io/xinguang/> (GitHub Pages)
+
 Everything is static - no build step, no backend, no analytics.
 
 ## Running it

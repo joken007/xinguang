@@ -1,7 +1,9 @@
 # 把「心光」发布到 GitHub（并变成网站）
 
-> 这一页是给**你**看的操作手册。**站点已经上线：<https://joken007.github.io/xinguang/>**（Pages + HTTPS，每次推送都会跑一遍 CI 和重新部署）。
-> 还没做的只剩「更好记的免费域名 `xinguang.is-a.dev`」这一件可选的事，而且**必须由你本人提 PR**（原因见第三步）。
+> 这一页是给**你**看的操作手册。**站点已经上线，两个地址都能打开：**
+> - **短域名 <https://xinguang.surge.sh/>**（surge.sh 免费二级域，HTTPS，已验收：0 console 错误、60 帧全流程正常）
+> - 正本 <https://joken007.github.io/xinguang/>（GitHub Pages + HTTPS，每次推送都会跑 CI 并重新部署）
+> `xinguang.is-a.dev` 那种更正式的域名仍然**只能你本人提 PR**（原因见第三步）；不着急的话，短域名已经够用。
 > 全流程 0 元，不需要买服务器、不需要域名费。
 
 ## 现在到哪一步了
@@ -15,7 +17,8 @@
 | 授权后自动发布 | ✅ 已就绪：`npm run live` 一条命令在前台做完全程（体检 → 建仓/推送/开 Pages/验站点 → 元数据指向线上地址）；也可以让 `node tools/watch-and-release.mjs`（现在等 7 天）一看到令牌就自己跑，最后把社交预览和文档里的地址指向这个线上地址（已端到端彩排；设 `SKIP_POLISH=1` 可只停在发布这一步） |
 | 推送到你的 GitHub 账号 | ✅ 已推送：<https://joken007.github.io/xinguang/> |
 | 开启 GitHub Pages 线上站点 | ✅ 已上线并验证：<https://joken007.github.io/xinguang/> |
-| 申请免费域名 `xinguang.is-a.dev` | ⏳ **只能你本人提 PR**：is-a.dev 的 `AGENTS.md` 明文禁止 AI 代提（坚持要代提的话 PR 标题必须带 `(dns-preflight)` 并注明是 AI 生成，否则会被自动关闭）。材料已备好：`docs/is-a-dev-pr/xinguang.is-a.dev.json`（用户名与 CNAME 已填好，只剩一个邮箱），步骤见 [`docs/is-a-dev-pr/README.md`](docs/is-a-dev-pr/README.md) |
+| 免费短域名 | ✅ 已上线并验证：**<https://xinguang.surge.sh/>**（surge.sh 免费二级域）。账号凭据在仓库外 `E:\shiguang-testbed\dl\surge-account2.txt`，重发见下方「重新发布到 surge.sh」 |
+| 申请 `xinguang.is-a.dev` | ❌ 代提过一次（PR #58328），几分钟后被 reviewbot 以「AI-Generated Pull Request」关闭——标题带 `(dns-preflight)`+ 正文披露这条豁免路径**实测不生效**。要它只能**你本人**提 PR（材料与注意事项见 [`docs/is-a-dev-pr/README.md`](docs/is-a-dev-pr/README.md)）。**替代方案已落地**：`xinguang.surge.sh` 已上线 |
 | PR 合并后把域名挂到 Pages（填 cname → 开 HTTPS → 验线上） | ✅ 脚本已就绪并彩排（`tools/gh-custom-domain.mjs`，原来要人去 Settings 手点） |
 
 ## 第零步：先体检（随时可以跑）
@@ -176,11 +179,27 @@ node tools/publish-polish.mjs --url https://<你的用户名>.github.io/xinguang
 
 详细调研见 [`docs/free-domain.md`](docs/free-domain.md)，结论是两条腿走路：
 
-| 方案 | 拿到什么 | 需要你做什么 |
+| 方案 | 拿到什么 | 现在状态 |
 | --- | --- | --- |
-| **is-a.dev**（首选） | `xinguang.is-a.dev` 这样的独立二级域 | 定个名字 → 用一个 GitHub PR 申请（几小时~3 天合并，永久免费） |
-| **Cloudflare Pages**（镜像） | `xinguang.pages.dev` | 用 GitHub 授权一次，连仓库自动部署；国内访问更稳 |
-| 保底 | `用户名.github.io/xinguang/` | 什么都不用做 |
+| **surge.sh**（已落地） | `xinguang.surge.sh` | ✅ 已上线（HTTPS，免费，无需域名费，也不用你点任何东西） |
+| **is-a.dev** | `xinguang.is-a.dev` | ❌ 只能你本人提 PR；代提已被机器人关闭 |
+| **Cloudflare Pages**（镜像） | `xinguang.pages.dev` | 可选：用 GitHub 授权一次，连仓库自动部署 |
+| 保底 | `用户名.github.io/xinguang/` | ✅ 一直在 |
+
+### 重新发布到 surge.sh
+
+站点已经挂在 `xinguang.surge.sh`。以后改了内容要重新上传，只需（凭据在仓库外，别提交进 git）：
+
+```powershell
+$cred = Get-Content E:\shiguang-testbed\dl\surge-account2.txt | ConvertFrom-StringData
+$env:SURGE_LOGIN = $cred.email; $env:SURGE_TOKEN = $cred.token
+node E:\shiguang-testbed\surge\node_modules\surge\bin\surge E:\shiguang-testbed\surge-site xinguang.surge.sh
+```
+
+`surge-site` 是把 `index.html` + `src/` + `vendor/` + 图标/manifest 拷出来的一份静态目录（站点根目录**不含** `serve.mjs`/`tools/`）。
+发布后 `https://xinguang.surge.sh/` 立刻生效（同一个账号重复上传就是覆盖），不需要再做验证。
+
+> 踩过的两个坑：① 账号邮箱必须是**能收信的真实地址**——用 GitHub 的 `noreply` 地址建号会被判 `no-mx`，站点永久 `paused`；② 域名一旦被某个 surge 账号占住，换账号要先 `DELETE /<域名>` 再 `DELETE /account` 才能释放。
 
 ### 申请 is-a.dev 的 DNS 记录
 

@@ -4,7 +4,8 @@
 打开时先是一屏几乎全黑的打字机独白，静下来之后轻触画面——**每轻触一次，太阳就升起一帧，天色随之亮一分**，
 六十帧之后天光大亮，你才看清眼前有什么。而太阳不会停在顶点，它会一直、慢慢地往上走。
 
-线上地址：<https://joken007.github.io/xinguang/>
+线上地址：**<https://xinguang.surge.sh/>**（短域名，surge.sh 免费二级域）
+镜像：<https://joken007.github.io/xinguang/>（GitHub Pages 正本）
 
 ## 预览
 
